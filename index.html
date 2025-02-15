@@ -17,7 +17,7 @@
       max-width: 800px;
       margin: 20px auto;
       padding: 20px;
-      background: rgba(255, 255, 255, 0.9);
+      background: rgba(255, 255, 255, 0.95);
       border-radius: 12px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
@@ -26,7 +26,7 @@
       text-align: center;
       color: #d6336c;
     }
-    p, label, li {
+    p, label {
       color: #333;
       line-height: 1.6;
     }
@@ -43,28 +43,36 @@
     button:hover {
       background: #b02a47;
     }
-    form {
-      display: flex;
-      flex-direction: column;
-    }
-    input[type="text"],
-    input[type="number"] {
+    input[type="text"] {
       padding: 8px;
       margin-top: 5px;
       border: 1px solid #ccc;
       border-radius: 4px;
       font-size: 16px;
+      width: 100%;
     }
-    fieldset {
+    .tile-container {
+      display: flex;
+      justify-content: space-around;
       margin-top: 20px;
-      border: 1px solid #d6336c;
+    }
+    .tile {
+      background: #f8d7da;
       padding: 15px;
       border-radius: 8px;
-      background: #fff;
-    }
-    legend {
+      cursor: pointer;
+      text-align: center;
+      flex: 1;
+      margin: 0 10px;
       font-weight: bold;
-      color: #d6336c;
+    }
+    .tile:hover {
+      background: #f1c0c0;
+    }
+    .progress {
+      text-align: center;
+      margin-top: 10px;
+      color: #555;
     }
     .link-box {
       background: #f8d7da;
@@ -83,133 +91,120 @@
       button {
         width: 100%;
       }
+      .tile {
+        margin: 5px;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="container" id="app">
-    <!-- Treść generowana przez JavaScript -->
-  </div>
+  <div class="container" id="app"></div>
 
   <script>
-    // Helper: pobieranie parametrów URL
+    // Funkcje pomocnicze
     function getQueryParam(param) {
-      const urlParams = new URLSearchParams(window.location.search);
-      return urlParams.get(param);
+      const params = new URLSearchParams(window.location.search);
+      return params.get(param);
     }
-
-    // Generowanie unikalnego tokena
     function generateToken() {
       return Math.random().toString(36).substr(2, 8);
     }
-
-    // Klucz w localStorage dla danego tokena
     function sessionKey(token) {
       return 'quizSession_' + token;
     }
+    function saveSession(token, data) {
+      localStorage.setItem(sessionKey(token), JSON.stringify(data));
+    }
+    function loadSession(token) {
+      const data = localStorage.getItem(sessionKey(token));
+      return data ? JSON.parse(data) : null;
+    }
+    function formatText(text, p1, p2) {
+      return text.replace(/{p1}/g, p1).replace(/{p2}/g, p2);
+    }
 
-    /* 
-      Dane quizu – 6 kategorii, każda z 10 pytaniami.
-      Teksty pytań zawierają placeholdery {p1} oraz {p2},
-      które zostaną zastąpione imionami partnerów.
-    */
-    const quizData = [
+    // Pełna baza pytań: 5 kategorii, każda po 10 pytań (5 porównawczych, 5 tak/nie)
+    const fullQuizData = [
       {
         category: "Życie codzienne",
         questions: [
-          { id: "codzienne1", text: "Kto jest bardziej zorganizowany? {p1} vs {p2}" },
-          { id: "codzienne2", text: "Kto bardziej pamięta drobne szczegóły dnia codziennego? {p1} vs {p2}" },
-          { id: "codzienne3", text: "Kto częściej przejmuje inicjatywę w planowaniu dnia? {p1} vs {p2}" },
-          { id: "codzienne4", text: "Kto lepiej radzi sobie w sytuacjach kryzysowych? {p1} vs {p2}" },
-          { id: "codzienne5", text: "Kto jest bardziej punktualny? {p1} vs {p2}" },
-          { id: "codzienne6", text: "Kto bardziej dba o porządek w domu? {p1} vs {p2}" },
-          { id: "codzienne7", text: "Kto jest bardziej praktyczny w codziennych sprawach? {p1} vs {p2}" },
-          { id: "codzienne8", text: "Kto częściej podejmuje spontaniczne decyzje? {p1} vs {p2}" },
-          { id: "codzienne9", text: "Kto bardziej ceni rutynę i stabilność? {p1} vs {p2}" },
-          { id: "codzienne10", text: "Kto częściej organizuje wspólne wyjścia? {p1} vs {p2}" }
+          { id: "codzienne1", type: "comparative", text: "Kto jest bardziej zorganizowany? {p1} vs {p2}" },
+          { id: "codzienne2", type: "comparative", text: "Kto lepiej zarządza czasem? {p1} vs {p2}" },
+          { id: "codzienne3", type: "comparative", text: "Kto bardziej dba o porządek w domu? {p1} vs {p2}" },
+          { id: "codzienne4", type: "comparative", text: "Kto częściej podejmuje inicjatywę w codziennych zadaniach? {p1} vs {p2}" },
+          { id: "codzienne5", type: "comparative", text: "Kto lepiej radzi sobie z obowiązkami domowymi? {p1} vs {p2}" },
+          { id: "codzienne6", type: "yesno", text: "Czy uważasz, że {p1} jest bardziej punktualny niż {p2}?" },
+          { id: "codzienne7", type: "yesno", text: "Czy {p1} skuteczniej organizuje wspólne sprawy?" },
+          { id: "codzienne8", type: "yesno", text: "Czy {p2} częściej dba o detale dnia codziennego?" },
+          { id: "codzienne9", type: "yesno", text: "Czy oboje podchodzicie do codziennych obowiązków podobnie?" },
+          { id: "codzienne10", type: "yesno", text: "Czy {p2} jest bardziej skrupulatny w planowaniu dnia?" }
         ]
       },
       {
         category: "Romantyzm",
         questions: [
-          { id: "romantyzm1", text: "Kto jest bardziej romantyczny? {p1} vs {p2}" },
-          { id: "romantyzm2", text: "Kto częściej organizuje niespodzianki? {p1} vs {p2}" },
-          { id: "romantyzm3", text: "Kto jest bardziej skłonny do okazywania uczuć? {p1} vs {p2}" },
-          { id: "romantyzm4", text: "Kto lepiej planuje romantyczne kolacje? {p1} vs {p2}" },
-          { id: "romantyzm5", text: "Kto częściej wspomina o wspólnych chwilach? {p1} vs {p2}" },
-          { id: "romantyzm6", text: "Kto bardziej dba o intymne gesty? {p1} vs {p2}" },
-          { id: "romantyzm7", text: "Kto jest bardziej sentymentalny? {p1} vs {p2}" },
-          { id: "romantyzm8", text: "Kto bardziej lubi przytulanie? {p1} vs {p2}" },
-          { id: "romantyzm9", text: "Kto częściej marzy o idealnej miłości? {p1} vs {p2}" },
-          { id: "romantyzm10", text: "Kto bardziej dba o romantyczny nastrój w domu? {p1} vs {p2}" }
+          { id: "romantyzm1", type: "comparative", text: "Kto jest bardziej romantyczny? {p1} vs {p2}" },
+          { id: "romantyzm2", type: "comparative", text: "Kto częściej organizuje niespodzianki? {p1} vs {p2}" },
+          { id: "romantyzm3", type: "comparative", text: "Kto lepiej planuje romantyczne kolacje? {p1} vs {p2}" },
+          { id: "romantyzm4", type: "comparative", text: "Kto bardziej pamięta romantyczne chwile? {p1} vs {p2}" },
+          { id: "romantyzm5", type: "comparative", text: "Kto lepiej wyraża swoje uczucia? {p1} vs {p2}" },
+          { id: "romantyzm6", type: "yesno", text: "Czy uważasz, że {p1} jest bardziej sentymentalny niż {p2}?" },
+          { id: "romantyzm7", type: "yesno", text: "Czy {p2} częściej inicjuje romantyczne gesty?" },
+          { id: "romantyzm8", type: "yesno", text: "Czy oboje dbacie o romantyczną atmosferę w związku?" },
+          { id: "romantyzm9", type: "yesno", text: "Czy {p1} częściej myśli o niespodziankach?" },
+          { id: "romantyzm10", type: "yesno", text: "Czy {p2} lepiej utrzymuje romantyczny nastrój?" }
         ]
       },
       {
         category: "Przygody i spontaniczność",
         questions: [
-          { id: "przygody1", text: "Kto jest bardziej spontaniczny? {p1} vs {p2}" },
-          { id: "przygody2", text: "Kto częściej podejmuje ryzykowne decyzje? {p1} vs {p2}" },
-          { id: "przygody3", text: "Kto jest bardziej otwarty na nowe doświadczenia? {p1} vs {p2}" },
-          { id: "przygody4", text: "Kto częściej inicjuje niespodziewane wypady? {p1} vs {p2}" },
-          { id: "przygody5", text: "Kto jest bardziej żądny przygód? {p1} vs {p2}" },
-          { id: "przygody6", text: "Kto częściej planuje wakacje pełne przygód? {p1} vs {p2}" },
-          { id: "przygody7", text: "Kto jest bardziej gotowy na spontaniczne podróże? {p1} vs {p2}" },
-          { id: "przygody8", text: "Kto częściej rezygnuje z rutyny dla nowych wrażeń? {p1} vs {p2}" },
-          { id: "przygody9", text: "Kto bardziej cieszy się z niespodziewanych wydarzeń? {p1} vs {p2}" },
-          { id: "przygody10", text: "Kto jest bardziej otwarty na zmiany? {p1} vs {p2}" }
+          { id: "przygody1", type: "comparative", text: "Kto jest bardziej spontaniczny? {p1} vs {p2}" },
+          { id: "przygody2", type: "comparative", text: "Kto częściej inicjuje niespodziewane wypady? {p1} vs {p2}" },
+          { id: "przygody3", type: "comparative", text: "Kto bardziej kocha przygody? {p1} vs {p2}" },
+          { id: "przygody4", type: "comparative", text: "Kto częściej podejmuje ryzykowne decyzje? {p1} vs {p2}" },
+          { id: "przygody5", type: "comparative", text: "Kto lepiej adaptuje się do nowych sytuacji? {p1} vs {p2}" },
+          { id: "przygody6", type: "yesno", text: "Czy uważasz, że {p1} jest bardziej otwarty na nowe doświadczenia?" },
+          { id: "przygody7", type: "yesno", text: "Czy {p2} częściej szuka przygód?" },
+          { id: "przygody8", type: "yesno", text: "Czy oboje podejmujecie spontaniczne decyzje?" },
+          { id: "przygody9", type: "yesno", text: "Czy {p1} jest bardziej skłonny do spontanicznych wypraw?" },
+          { id: "przygody10", type: "yesno", text: "Czy {p2} lepiej radzi sobie w nieprzewidywalnych sytuacjach?" }
         ]
       },
       {
         category: "Plany na przyszłość",
         questions: [
-          { id: "przyszlosc1", text: "Kto jest bardziej zorientowany na przyszłość? {p1} vs {p2}" },
-          { id: "przyszlosc2", text: "Kto częściej planuje długoterminowe cele? {p1} vs {p2}" },
-          { id: "przyszlosc3", text: "Kto lepiej wizualizuje wspólną przyszłość? {p1} vs {p2}" },
-          { id: "przyszlosc4", text: "Kto częściej mówi o planach na przyszłość? {p1} vs {p2}" },
-          { id: "przyszlosc5", text: "Kto bardziej marzy o wspólnym życiu? {p1} vs {p2}" },
-          { id: "przyszlosc6", text: "Kto częściej podejmuje decyzje z myślą o przyszłości? {p1} vs {p2}" },
-          { id: "przyszlosc7", text: "Kto jest bardziej skłonny do inwestowania w przyszłość? {p1} vs {p2}" },
-          { id: "przyszlosc8", text: "Kto bardziej dba o bezpieczeństwo finansowe? {p1} vs {p2}" },
-          { id: "przyszlosc9", text: "Kto lepiej radzi sobie z planowaniem rodziny? {p1} vs {p2}" },
-          { id: "przyszlosc10", text: "Kto bardziej angażuje się w budowanie wspólnego jutra? {p1} vs {p2}" }
+          { id: "przyszlosc1", type: "comparative", text: "Kto jest bardziej zorientowany na przyszłość? {p1} vs {p2}" },
+          { id: "przyszlosc2", type: "comparative", text: "Kto częściej planuje długoterminowe cele? {p1} vs {p2}" },
+          { id: "przyszlosc3", type: "comparative", text: "Kto lepiej wizualizuje wspólną przyszłość? {p1} vs {p2}" },
+          { id: "przyszlosc4", type: "comparative", text: "Kto częściej myśli o wspólnych planach? {p1} vs {p2}" },
+          { id: "przyszlosc5", type: "comparative", text: "Kto bardziej angażuje się w planowanie przyszłości? {p1} vs {p2}" },
+          { id: "przyszlosc6", type: "yesno", text: "Czy uważasz, że {p1} lepiej planuje przyszłość niż {p2}?" },
+          { id: "przyszlosc7", type: "yesno", text: "Czy {p2} częściej myśli o długoterminowych celach?" },
+          { id: "przyszlosc8", type: "yesno", text: "Czy oboje macie podobne wizje przyszłości?" },
+          { id: "przyszlosc9", type: "yesno", text: "Czy {p1} jest bardziej zdecydowany w planach?" },
+          { id: "przyszlosc10", type: "yesno", text: "Czy {p2} częściej przejmuje inicjatywę w planowaniu przyszłości?" }
         ]
       },
       {
         category: "Intymność",
         questions: [
-          { id: "intymnosc1", text: "Kto jest bardziej czuły? {p1} vs {p2}" },
-          { id: "intymnosc2", text: "Kto bardziej inicjuje romantyczne gesty? {p1} vs {p2}" },
-          { id: "intymnosc3", text: "Kto częściej okazuje swoje uczucia publicznie? {p1} vs {p2}" },
-          { id: "intymnosc4", text: "Kto jest bardziej otwarty na fizyczną bliskość? {p1} vs {p2}" },
-          { id: "intymnosc5", text: "Kto częściej dba o intymną atmosferę? {p1} vs {p2}" },
-          { id: "intymnosc6", text: "Kto jest bardziej zmysłowy? {p1} vs {p2}" },
-          { id: "intymnosc7", text: "Kto częściej mówi o swoich potrzebach intymnych? {p1} vs {p2}" },
-          { id: "intymnosc8", text: "Kto jest bardziej zaangażowany w budowanie intymności? {p1} vs {p2}" },
-          { id: "intymnosc9", text: "Kto częściej inicjuje chwile bliskości? {p1} vs {p2}" },
-          { id: "intymnosc10", text: "Kto bardziej dba o komfort emocjonalny partnera? {p1} vs {p2}" }
+          { id: "intymnosc1", type: "comparative", text: "Kto jest bardziej czuły? {p1} vs {p2}" },
+          { id: "intymnosc2", type: "comparative", text: "Kto częściej inicjuje intymne gesty? {p1} vs {p2}" },
+          { id: "intymnosc3", type: "comparative", text: "Kto lepiej rozumie potrzeby partnera? {p1} vs {p2}" },
+          { id: "intymnosc4", type: "comparative", text: "Kto częściej wyraża swoje uczucia? {p1} vs {p2}" },
+          { id: "intymnosc5", type: "comparative", text: "Kto jest bardziej zmysłowy? {p1} vs {p2}" },
+          { id: "intymnosc6", type: "yesno", text: "Czy uważasz, że {p1} jest bardziej intymny niż {p2}?" },
+          { id: "intymnosc7", type: "yesno", text: "Czy {p2} częściej dba o intymność w związku?" },
+          { id: "intymnosc8", type: "yesno", text: "Czy oboje czujecie głęboką więź emocjonalną?" },
+          { id: "intymnosc9", type: "yesno", text: "Czy {p1} lepiej komunikuje swoje potrzeby intymne?" },
+          { id: "intymnosc10", type: "yesno", text: "Czy {p2} częściej okazuje uczucia w sposób intymny?" }
         ]
       }
     ];
 
     const appDiv = document.getElementById('app');
 
-    // Zapis sesji w localStorage
-    function saveSession(token, sessionData) {
-      localStorage.setItem(sessionKey(token), JSON.stringify(sessionData));
-    }
-
-    // Odczyt sesji z localStorage
-    function loadSession(token) {
-      const data = localStorage.getItem(sessionKey(token));
-      return data ? JSON.parse(data) : null;
-    }
-
-    // Funkcja pomocnicza do zastąpienia placeholderów {p1} i {p2} imionami
-    function formatQuestion(text, partner1Name, partner2Name) {
-      return text.replace(/{p1}/g, partner1Name).replace(/{p2}/g, partner2Name);
-    }
-
-    // Strona tworzenia nowego quizu – wpisz imiona obu partnerów
+    // Krok 1: Formularz tworzenia quizu (Partner 1 wpisuje imiona)
     function showCreateQuiz() {
       appDiv.innerHTML = `
         <h1>Quiz dla Zakochanych</h1>
@@ -224,26 +219,58 @@
       `;
       document.getElementById('createQuizForm').addEventListener('submit', function(e) {
         e.preventDefault();
-        const partner1Name = e.target.partner1Name.value.trim();
-        const partner2Name = e.target.partner2Name.value.trim();
-        if (!partner1Name || !partner2Name) {
+        const p1 = e.target.partner1Name.value.trim();
+        const p2 = e.target.partner2Name.value.trim();
+        if (!p1 || !p2) {
           alert("Proszę wpisać imiona obu partnerów.");
           return;
         }
         const token = generateToken();
         const sessionData = {
           token: token,
-          partner1Name: partner1Name,
-          partner2Name: partner2Name,
+          partner1Name: p1,
+          partner2Name: p2,
           answers: {}
         };
         saveSession(token, sessionData);
-        // Przekierowanie – wyświetl stronę z linkiem dla Partnera 2 i przyciskiem kopiowania
+        // Przekieruj Partnera 1 do strony (dodajemy token i partner=1 w URL)
+        window.location.href = window.location.origin + window.location.pathname + `?token=${token}&partner=1`;
+      });
+    }
+
+    // Krok 2: Wybór kategorii – dostępny tylko dla Partnera 1
+    function showCategorySelection(sessionData) {
+      let categoryOptions = fullQuizData.map(cat => {
+        return `<div>
+                  <label>
+                    <input type="checkbox" name="category" value="${cat.category}" checked>
+                    ${cat.category}
+                  </label>
+                </div>`;
+      }).join("");
+      appDiv.innerHTML = `
+        <h2>Wybierz kategorie quizu</h2>
+        <form id="categoryForm">
+          ${categoryOptions}
+          <button type="submit">Zapisz wybór kategorii</button>
+        </form>
+      `;
+      document.getElementById('categoryForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const selected = Array.from(document.querySelectorAll('input[name="category"]:checked')).map(el => el.value);
+        if (selected.length === 0) {
+          alert("Wybierz przynajmniej jedną kategorię.");
+          return;
+        }
+        // Filtrujemy pełne dane quizu na podstawie wybranych kategorii
+        const selectedCategories = fullQuizData.filter(cat => selected.includes(cat.category));
+        sessionData.selectedCategories = selectedCategories;
+        saveSession(sessionData.token, sessionData);
         showLinkPage(sessionData);
       });
     }
 
-    // Strona wyświetlająca link dla partnera 2 z przyciskiem do kopiowania
+    // Krok 3: Strona z linkiem dla Partnera 2 (oraz przyciskiem startu dla Partnera 1)
     function showLinkPage(sessionData) {
       const baseUrl = window.location.origin + window.location.pathname;
       const partner2Link = `${baseUrl}?token=${sessionData.token}&partner=2`;
@@ -253,96 +280,125 @@
         <div class="link-box" id="partner2Link">${partner2Link}</div>
         <button id="copyBtn">Kopiuj link</button>
         <hr>
-        <p>Jeśli chcesz, możesz już wypełnić quiz jako <strong>${sessionData.partner1Name}</strong>:</p>
-        <a href="${baseUrl}?token=${sessionData.token}&partner=1"><button>Przejdź do quizu</button></a>
+        <p>Jako <strong>${sessionData.partner1Name}</strong> możesz już rozpocząć quiz.</p>
+        <button id="startQuizBtn">Rozpocznij quiz</button>
         <button id="newQuizBtn" style="background: #6c757d;">Utwórz nowy quiz</button>
       `;
       document.getElementById('copyBtn').addEventListener('click', function() {
         const linkText = document.getElementById('partner2Link').innerText;
         navigator.clipboard.writeText(linkText).then(function() {
-          alert("Link został skopiowany do schowka!");
-        }, function(err) {
-          alert("Wystąpił błąd podczas kopiowania linku.");
+          alert("Link został skopiowany!");
         });
       });
-      document.getElementById('newQuizBtn').addEventListener('click', () => {
+      document.getElementById('startQuizBtn').addEventListener('click', function() {
+        startQuiz(sessionData, "1");
+      });
+      document.getElementById('newQuizBtn').addEventListener('click', function() {
+        localStorage.removeItem(sessionKey(sessionData.token));
         window.location.href = window.location.origin + window.location.pathname;
       });
     }
 
-    // Formularz quizu – partner odpowiada na 50 pytań (porównawczych)
-    function showQuizForm(sessionData, partnerNum) {
-      const partnerName = partnerNum === "1" ? sessionData.partner1Name : sessionData.partner2Name;
-      let formHtml = `<h2>Quiz dla ${partnerName}</h2>
-        <p>Odpowiedz na poniższe pytania, wybierając wartość w skali 1-10.<br>
-        <small>(1 – bardziej cecha <em>${sessionData.partner1Name}</em>, 10 – bardziej cecha <em>${sessionData.partner2Name}</em>, 5 – równo)</small></p>
-        <form id="quizForm">`;
-      quizData.forEach(category => {
-        formHtml += `<fieldset>
-          <legend>${category.category}</legend>`;
-        category.questions.forEach(q => {
-          const formattedText = formatQuestion(q.text, sessionData.partner1Name, sessionData.partner2Name);
-          formHtml += `
-            <label for="${q.id}">${formattedText}</label>
-            <input type="number" id="${q.id}" name="${q.id}" min="1" max="10" required>
-          `;
+    // Krok 4: Rozpoczęcie quizu – budujemy liniową tablicę pytań z wybranych kategorii
+    function startQuiz(sessionData, partner) {
+      let quizQuestions = [];
+      sessionData.selectedCategories.forEach(cat => {
+        cat.questions.forEach(q => {
+          // Dodajemy informację o kategorii do pytania
+          quizQuestions.push({ ...q, category: cat.category });
         });
-        formHtml += `</fieldset>`;
       });
-      formHtml += `<button type="submit">Zapisz odpowiedzi</button></form>`;
-      appDiv.innerHTML = formHtml;
+      // Inicjalizujemy tablicę odpowiedzi dla danego partnera
+      if (!sessionData.answers["partner" + partner]) {
+        sessionData.answers["partner" + partner] = [];
+      }
+      // Rozpoczynamy od pierwszego pytania
+      showQuestion(0, quizQuestions, sessionData, partner);
+    }
 
-      document.getElementById('quizForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const formData = new FormData(e.target);
-        let answers = {};
-        quizData.forEach(category => {
-          category.questions.forEach(q => {
-            answers[q.id] = formData.get(q.id);
-          });
-        });
-        sessionData.answers["partner" + partnerNum] = answers;
+    // Krok 5: Wyświetlanie pojedynczego pytania (z postępem i kafelkami odpowiedzi)
+    function showQuestion(index, quizQuestions, sessionData, partner) {
+      if (index >= quizQuestions.length) {
         saveSession(sessionData.token, sessionData);
-        if (sessionData.answers.partner1 && sessionData.answers.partner2) {
-          showResults(sessionData);
-        } else {
-          appDiv.innerHTML = `<p>Dziękujemy, ${partnerName}. Twoje odpowiedzi zostały zapisane. Czekamy na odpowiedzi drugiego partnera.</p>
-          <button id="backBtn">Powrót</button>`;
-          document.getElementById('backBtn').addEventListener('click', () => location.reload());
-        }
+        showQuizResults(sessionData);
+        return;
+      }
+      const total = quizQuestions.length;
+      const current = quizQuestions[index];
+      const p1 = sessionData.partner1Name;
+      const p2 = sessionData.partner2Name;
+      const questionText = formatText(current.text, p1, p2);
+      let optionsHTML = "";
+      if (current.type === "comparative") {
+        optionsHTML = `
+          <div class="tile" data-answer="1">${p1}</div>
+          <div class="tile" data-answer="2">${p2}</div>
+        `;
+      } else if (current.type === "yesno") {
+        optionsHTML = `
+          <div class="tile" data-answer="tak">Tak</div>
+          <div class="tile" data-answer="nie">Nie</div>
+        `;
+      }
+      appDiv.innerHTML = `
+        <div class="progress">Pytanie ${index + 1} z ${total}</div>
+        <h2>${questionText}</h2>
+        <div class="tile-container">
+          ${optionsHTML}
+        </div>
+      `;
+      const tiles = document.querySelectorAll('.tile');
+      tiles.forEach(tile => {
+        tile.addEventListener('click', function() {
+          const answer = this.getAttribute('data-answer');
+          sessionData.answers["partner" + partner].push({
+            id: current.id,
+            category: current.category,
+            type: current.type,
+            answer: answer
+          });
+          saveSession(sessionData.token, sessionData);
+          showQuestion(index + 1, quizQuestions, sessionData, partner);
+        });
       });
     }
 
-    // Wyliczanie i wyświetlanie wyników – ogólna zgodność oraz wyniki per kategoria
-    function showResults(sessionData) {
+    // Krok 6: Wyświetlenie wyników quizu – obliczamy procent zgodności (ogólną i per kategorię)
+    function showQuizResults(sessionData) {
       const answers1 = sessionData.answers.partner1;
       const answers2 = sessionData.answers.partner2;
-      let totalDifference = 0;
-      let totalQuestions = 0;
-      let categoryResultsHtml = "";
-      quizData.forEach(category => {
-        let catDifference = 0;
-        const catQuestions = category.questions.length;
-        category.questions.forEach(q => {
-          const a1 = parseInt(answers1[q.id], 10);
-          const a2 = parseInt(answers2[q.id], 10);
-          catDifference += Math.abs(a1 - a2);
-        });
-        totalDifference += catDifference;
-        totalQuestions += catQuestions;
-        const maxDiffCat = catQuestions * 9;
-        const similarityCat = 100 - ((catDifference / maxDiffCat) * 100);
-        categoryResultsHtml += `<li><strong>${category.category}:</strong> Zgodność: ${similarityCat.toFixed(2)}%</li>`;
-      });
-      const overallMax = totalQuestions * 9;
-      const overallSimilarity = 100 - ((totalDifference / overallMax) * 100);
-
+      if (!answers1 || !answers2 || answers1.length !== answers2.length) {
+        appDiv.innerHTML = `<p>Oczekiwanie na zakończenie quizu przez oboje partnerów.</p>`;
+        return;
+      }
+      const total = answers1.length;
+      let agreements = 0;
+      let categoryStats = {};
+      for (let i = 0; i < total; i++) {
+        const a1 = answers1[i].answer;
+        const a2 = answers2[i].answer;
+        const cat = answers1[i].category;
+        if (!categoryStats[cat]) {
+          categoryStats[cat] = { total: 0, agree: 0 };
+        }
+        categoryStats[cat].total++;
+        if (a1 === a2) {
+          agreements++;
+          categoryStats[cat].agree++;
+        }
+      }
+      const overallAgreement = ((agreements / total) * 100).toFixed(2);
+      let categoryResults = "";
+      for (let cat in categoryStats) {
+        const percent = ((categoryStats[cat].agree / categoryStats[cat].total) * 100).toFixed(2);
+        categoryResults += `<li><strong>${cat}:</strong> ${percent}% zgodności</li>`;
+      }
       appDiv.innerHTML = `
         <h2>Wyniki Quizu</h2>
         <p><strong>${sessionData.partner1Name}</strong> vs <strong>${sessionData.partner2Name}</strong></p>
-        <p>Ogólna zgodność: <strong>${overallSimilarity.toFixed(2)}%</strong></p>
+        <p>Ogólna zgodność: <strong>${overallAgreement}%</strong></p>
         <h3>Szczegółowe wyniki według kategorii:</h3>
-        <ul>${categoryResultsHtml}</ul>
+        <ul>${categoryResults}</ul>
         <button id="resetBtn">Resetuj Quiz</button>
       `;
       document.getElementById('resetBtn').addEventListener('click', function() {
@@ -351,7 +407,11 @@
       });
     }
 
-    // Główna logika – sprawdzamy, czy w URL są parametry token (sesji) oraz partner
+    // Główna logika – w zależności od parametrów URL:
+    // * Jeśli brak tokenu – wyświetl formularz tworzenia quizu (Partner 1)
+    // * Jeśli token istnieje:
+    //   - Dla partner=1: jeśli jeszcze nie wybrano kategorii – pokaż wybór, w przeciwnym razie stronę z linkiem i opcją startu quizu.
+    //   - Dla partner=2: uruchom quiz
     (function() {
       const token = getQueryParam('token');
       const partner = getQueryParam('partner');
@@ -361,11 +421,21 @@
           appDiv.innerHTML = `<p>Błąd: Nie znaleziono sesji quizu. Upewnij się, że link jest poprawny.</p>`;
           return;
         }
-        if (!partner) {
-          appDiv.innerHTML = `<p>Błąd: Brak informacji o partnerze. Użyj linku z parametrem 'partner'.</p>`;
-          return;
+        if (partner === "1") {
+          if (!sessionData.selectedCategories) {
+            showCategorySelection(sessionData);
+          } else {
+            showLinkPage(sessionData);
+          }
+        } else if (partner === "2") {
+          if (!sessionData.selectedCategories) {
+            appDiv.innerHTML = `<p>Quiz nie został jeszcze skonfigurowany przez Partnera 1.</p>`;
+            return;
+          }
+          startQuiz(sessionData, "2");
+        } else {
+          appDiv.innerHTML = `<p>Błąd: Nieznany partner.</p>`;
         }
-        showQuizForm(sessionData, partner);
       } else {
         showCreateQuiz();
       }
