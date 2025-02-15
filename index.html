@@ -3,46 +3,49 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Quiz dla Par - Bezpieczny Link</title>
+  <title>Quiz dla Zakochanych</title>
+  <!-- Romantyczne fonty -->
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script&family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #f0f2f5;
       margin: 0;
       padding: 0;
+      background: linear-gradient(135deg, #ffe6e6, #ffc0cb);
+      font-family: 'Montserrat', sans-serif;
     }
     .container {
       max-width: 800px;
       margin: 20px auto;
       padding: 20px;
-      background: #fff;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
     h1, h2, h3 {
+      font-family: 'Dancing Script', cursive;
       text-align: center;
+      color: #d6336c;
     }
-    p, li {
+    p, label, li {
+      color: #333;
       line-height: 1.6;
     }
     button {
-      background: #007BFF;
+      background: #d6336c;
       border: none;
       padding: 10px 20px;
       color: #fff;
       cursor: pointer;
       border-radius: 5px;
+      font-size: 16px;
       margin-top: 15px;
     }
     button:hover {
-      background: #0056b3;
+      background: #b02a47;
     }
     form {
       display: flex;
       flex-direction: column;
-    }
-    label {
-      margin-top: 10px;
     }
     input[type="text"],
     input[type="number"] {
@@ -50,27 +53,32 @@
       margin-top: 5px;
       border: 1px solid #ccc;
       border-radius: 4px;
+      font-size: 16px;
     }
     fieldset {
       margin-top: 20px;
-      border: 1px solid #ccc;
-      padding: 10px;
-      border-radius: 5px;
+      border: 1px solid #d6336c;
+      padding: 15px;
+      border-radius: 8px;
+      background: #fff;
     }
     legend {
       font-weight: bold;
+      color: #d6336c;
     }
     .link-box {
-      background: #e9ecef;
+      background: #f8d7da;
       padding: 10px;
       border-radius: 5px;
       margin: 10px 0;
       word-break: break-all;
+      text-align: center;
+      font-weight: bold;
     }
     @media (max-width: 600px) {
       .container {
-        padding: 10px;
         margin: 10px;
+        padding: 15px;
       }
       button {
         width: 100%;
@@ -84,97 +92,101 @@
   </div>
 
   <script>
-    // Funkcja pomocnicza: pobiera parametr z URL
+    // Helper: pobieranie parametrów URL
     function getQueryParam(param) {
       const urlParams = new URLSearchParams(window.location.search);
       return urlParams.get(param);
     }
 
-    // Funkcja generująca unikalny token
+    // Generowanie unikalnego tokena
     function generateToken() {
       return Math.random().toString(36).substr(2, 8);
     }
 
-    // Zwraca klucz do localStorage dla danego tokenu
+    // Klucz w localStorage dla danego tokena
     function sessionKey(token) {
       return 'quizSession_' + token;
     }
 
-    /* Struktura quizu – 5 kategorii z 10 pytaniami każda */
+    /* 
+      Dane quizu – 6 kategorii, każda z 10 pytaniami.
+      Teksty pytań zawierają placeholdery {p1} oraz {p2},
+      które zostaną zastąpione imionami partnerów.
+    */
     const quizData = [
       {
         category: "Życie codzienne",
         questions: [
-          { id: "codzienne1", text: "Jak oceniasz codzienną komunikację między Wami?" },
-          { id: "codzienne2", text: "Jak satysfakcjonujące są Wasze wspólne rutyny?" },
-          { id: "codzienne3", text: "Jak dobrze udaje się Wam rozwiązywać codzienne problemy?" },
-          { id: "codzienne4", text: "Jak często czujesz, że partner jest obecny emocjonalnie?" },
-          { id: "codzienne5", text: "Jak dobrze partner radzi sobie z codziennymi obowiązkami?" },
-          { id: "codzienne6", text: "Jak bardzo cenisz drobne gesty w codziennym życiu?" },
-          { id: "codzienne7", text: "Jak bardzo czujesz, że Twoje potrzeby są rozumiane na co dzień?" },
-          { id: "codzienne8", text: "Jak satysfakcjonujące są wspólne posiłki i gotowanie razem?" },
-          { id: "codzienne9", text: "Jak bardzo doceniasz partnera za wsparcie w codziennych wyzwaniach?" },
-          { id: "codzienne10", text: "Jak komfortowo czujesz się w dzieleniu codziennych obowiązków?" }
+          { id: "codzienne1", text: "Kto jest bardziej zorganizowany? {p1} vs {p2}" },
+          { id: "codzienne2", text: "Kto bardziej pamięta drobne szczegóły dnia codziennego? {p1} vs {p2}" },
+          { id: "codzienne3", text: "Kto częściej przejmuje inicjatywę w planowaniu dnia? {p1} vs {p2}" },
+          { id: "codzienne4", text: "Kto lepiej radzi sobie w sytuacjach kryzysowych? {p1} vs {p2}" },
+          { id: "codzienne5", text: "Kto jest bardziej punktualny? {p1} vs {p2}" },
+          { id: "codzienne6", text: "Kto bardziej dba o porządek w domu? {p1} vs {p2}" },
+          { id: "codzienne7", text: "Kto jest bardziej praktyczny w codziennych sprawach? {p1} vs {p2}" },
+          { id: "codzienne8", text: "Kto częściej podejmuje spontaniczne decyzje? {p1} vs {p2}" },
+          { id: "codzienne9", text: "Kto bardziej ceni rutynę i stabilność? {p1} vs {p2}" },
+          { id: "codzienne10", text: "Kto częściej organizuje wspólne wyjścia? {p1} vs {p2}" }
         ]
       },
       {
-        category: "Wyznania",
+        category: "Romantyzm",
         questions: [
-          { id: "wyznania1", text: "Jak szczery jesteś w wyrażaniu swoich uczuć wobec partnera?" },
-          { id: "wyznania2", text: "Jak często dzielisz się swoimi marzeniami i obawami?" },
-          { id: "wyznania3", text: "Jak bardzo czujesz się swobodnie, wyznając swoje słabości partnerowi?" },
-          { id: "wyznania4", text: "Jak otwarcie mówicie o swoich emocjach, nawet tych trudnych?" },
-          { id: "wyznania5", text: "Jak dużo wspólnych sekretów jesteście w stanie zachować między sobą?" },
-          { id: "wyznania6", text: "Jak często mówicie partnerowi o tym, co naprawdę czujecie?" },
-          { id: "wyznania7", text: "Jak ważne są dla Ciebie szczere wyznania w budowaniu relacji?" },
-          { id: "wyznania8", text: "Jak radzicie sobie z trudnymi tematami w rozmowach?" },
-          { id: "wyznania9", text: "Jak dużą wagę przywiązujesz do wzajemnego zaufania?" },
-          { id: "wyznania10", text: "Jak komfortowo dzielisz się swoimi osobistymi przeżyciami?" }
+          { id: "romantyzm1", text: "Kto jest bardziej romantyczny? {p1} vs {p2}" },
+          { id: "romantyzm2", text: "Kto częściej organizuje niespodzianki? {p1} vs {p2}" },
+          { id: "romantyzm3", text: "Kto jest bardziej skłonny do okazywania uczuć? {p1} vs {p2}" },
+          { id: "romantyzm4", text: "Kto lepiej planuje romantyczne kolacje? {p1} vs {p2}" },
+          { id: "romantyzm5", text: "Kto częściej wspomina o wspólnych chwilach? {p1} vs {p2}" },
+          { id: "romantyzm6", text: "Kto bardziej dba o intymne gesty? {p1} vs {p2}" },
+          { id: "romantyzm7", text: "Kto jest bardziej sentymentalny? {p1} vs {p2}" },
+          { id: "romantyzm8", text: "Kto bardziej lubi przytulanie? {p1} vs {p2}" },
+          { id: "romantyzm9", text: "Kto częściej marzy o idealnej miłości? {p1} vs {p2}" },
+          { id: "romantyzm10", text: "Kto bardziej dba o romantyczny nastrój w domu? {p1} vs {p2}" }
         ]
       },
       {
-        category: "Wspomnienia",
+        category: "Przygody i spontaniczność",
         questions: [
-          { id: "wspomnienia1", text: "Jak ważne są dla Ciebie wspólne wspomnienia z przeszłości?" },
-          { id: "wspomnienia2", text: "Jak często przypominacie sobie miłe chwile razem?" },
-          { id: "wspomnienia3", text: "Jak cenisz sobie wspólne świętowanie ważnych momentów?" },
-          { id: "wspomnienia4", text: "Jak bardzo budują dla Ciebie wspólne doświadczenia Waszą relację?" },
-          { id: "wspomnienia5", text: "Jak bardzo pamiętasz detale z Waszych pierwszych spotkań?" },
-          { id: "wspomnienia6", text: "Jak ważne są dla Ciebie tradycje, które razem stworzyliście?" },
-          { id: "wspomnienia7", text: "Jak bardzo doceniasz wspólne podróże i przygody?" },
-          { id: "wspomnienia8", text: "Jak często wracacie myślami do wspólnie spędzonego czasu?" },
-          { id: "wspomnienia9", text: "Jak ważna jest dla Ciebie historia Waszej relacji?" },
-          { id: "wspomnienia10", text: "Jak bardzo budujesz na przeszłych doświadczeniach Waszą przyszłość?" }
+          { id: "przygody1", text: "Kto jest bardziej spontaniczny? {p1} vs {p2}" },
+          { id: "przygody2", text: "Kto częściej podejmuje ryzykowne decyzje? {p1} vs {p2}" },
+          { id: "przygody3", text: "Kto jest bardziej otwarty na nowe doświadczenia? {p1} vs {p2}" },
+          { id: "przygody4", text: "Kto częściej inicjuje niespodziewane wypady? {p1} vs {p2}" },
+          { id: "przygody5", text: "Kto jest bardziej żądny przygód? {p1} vs {p2}" },
+          { id: "przygody6", text: "Kto częściej planuje wakacje pełne przygód? {p1} vs {p2}" },
+          { id: "przygody7", text: "Kto jest bardziej gotowy na spontaniczne podróże? {p1} vs {p2}" },
+          { id: "przygody8", text: "Kto częściej rezygnuje z rutyny dla nowych wrażeń? {p1} vs {p2}" },
+          { id: "przygody9", text: "Kto bardziej cieszy się z niespodziewanych wydarzeń? {p1} vs {p2}" },
+          { id: "przygody10", text: "Kto jest bardziej otwarty na zmiany? {p1} vs {p2}" }
         ]
       },
       {
         category: "Plany na przyszłość",
         questions: [
-          { id: "przyszlosc1", text: "Jak bardzo czujesz, że macie wspólne cele na przyszłość?" },
-          { id: "przyszlosc2", text: "Jak jasno wyobrażasz sobie wspólną przyszłość?" },
-          { id: "przyszlosc3", text: "Jak często rozmawiacie o marzeniach i planach na przyszłość?" },
-          { id: "przyszlosc4", text: "Jak ważne jest dla Ciebie planowanie wspólnej przyszłości?" },
-          { id: "przyszlosc5", text: "Jak bardzo jesteś gotów/gotowa na kompromisy dla dobra związku?" },
-          { id: "przyszlosc6", text: "Jak oceniasz zdolność do wspólnego pokonywania przyszłych wyzwań?" },
-          { id: "przyszlosc7", text: "Jak bardzo cenisz sobie wizję wspólnego rozwoju osobistego?" },
-          { id: "przyszlosc8", text: "Jak ważne są dla Ciebie plany dotyczące rodziny i domu?" },
-          { id: "przyszlosc9", text: "Jak pewnie czujesz, że Wasza przyszłość będzie stabilna?" },
-          { id: "przyszlosc10", text: "Jak dużo energii wkładacie w budowanie wspólnej przyszłości?" }
+          { id: "przyszlosc1", text: "Kto jest bardziej zorientowany na przyszłość? {p1} vs {p2}" },
+          { id: "przyszlosc2", text: "Kto częściej planuje długoterminowe cele? {p1} vs {p2}" },
+          { id: "przyszlosc3", text: "Kto lepiej wizualizuje wspólną przyszłość? {p1} vs {p2}" },
+          { id: "przyszlosc4", text: "Kto częściej mówi o planach na przyszłość? {p1} vs {p2}" },
+          { id: "przyszlosc5", text: "Kto bardziej marzy o wspólnym życiu? {p1} vs {p2}" },
+          { id: "przyszlosc6", text: "Kto częściej podejmuje decyzje z myślą o przyszłości? {p1} vs {p2}" },
+          { id: "przyszlosc7", text: "Kto jest bardziej skłonny do inwestowania w przyszłość? {p1} vs {p2}" },
+          { id: "przyszlosc8", text: "Kto bardziej dba o bezpieczeństwo finansowe? {p1} vs {p2}" },
+          { id: "przyszlosc9", text: "Kto lepiej radzi sobie z planowaniem rodziny? {p1} vs {p2}" },
+          { id: "przyszlosc10", text: "Kto bardziej angażuje się w budowanie wspólnego jutra? {p1} vs {p2}" }
         ]
       },
       {
         category: "Intymność",
         questions: [
-          { id: "intymnosc1", text: "Jak bardzo czujesz się zrozumiany/a na poziomie emocjonalnym?" },
-          { id: "intymnosc2", text: "Jak satysfakcjonująca jest dla Ciebie fizyczna bliskość?" },
-          { id: "intymnosc3", text: "Jak komfortowo dzielisz się swoimi potrzebami intymnymi?" },
-          { id: "intymnosc4", text: "Jak ważne jest dla Ciebie budowanie intymności w związku?" },
-          { id: "intymnosc5", text: "Jak dobrze rozumiesz sygnały swojego partnera w sferze intymności?" },
-          { id: "intymnosc6", text: "Jak otwarcie mówicie o swoich oczekiwaniach intymnych?" },
-          { id: "intymnosc7", text: "Jak satysfakcjonujące są Wasze wspólne chwile intymności?" },
-          { id: "intymnosc8", text: "Jak bardzo cenisz sobie intymność jako fundament relacji?" },
-          { id: "intymnosc9", text: "Jak dobrze radzicie sobie z rozmawianiem o granicach intymności?" },
-          { id: "intymnosc10", text: "Jak silne jest dla Ciebie uczucie bliskości w Waszym związku?" }
+          { id: "intymnosc1", text: "Kto jest bardziej czuły? {p1} vs {p2}" },
+          { id: "intymnosc2", text: "Kto bardziej inicjuje romantyczne gesty? {p1} vs {p2}" },
+          { id: "intymnosc3", text: "Kto częściej okazuje swoje uczucia publicznie? {p1} vs {p2}" },
+          { id: "intymnosc4", text: "Kto jest bardziej otwarty na fizyczną bliskość? {p1} vs {p2}" },
+          { id: "intymnosc5", text: "Kto częściej dba o intymną atmosferę? {p1} vs {p2}" },
+          { id: "intymnosc6", text: "Kto jest bardziej zmysłowy? {p1} vs {p2}" },
+          { id: "intymnosc7", text: "Kto częściej mówi o swoich potrzebach intymnych? {p1} vs {p2}" },
+          { id: "intymnosc8", text: "Kto jest bardziej zaangażowany w budowanie intymności? {p1} vs {p2}" },
+          { id: "intymnosc9", text: "Kto częściej inicjuje chwile bliskości? {p1} vs {p2}" },
+          { id: "intymnosc10", text: "Kto bardziej dba o komfort emocjonalny partnera? {p1} vs {p2}" }
         ]
       }
     ];
@@ -192,11 +204,16 @@
       return data ? JSON.parse(data) : null;
     }
 
-    // Strona tworzenia nowego quizu – wpisujemy imiona obu partnerów
+    // Funkcja pomocnicza do zastąpienia placeholderów {p1} i {p2} imionami
+    function formatQuestion(text, partner1Name, partner2Name) {
+      return text.replace(/{p1}/g, partner1Name).replace(/{p2}/g, partner2Name);
+    }
+
+    // Strona tworzenia nowego quizu – wpisz imiona obu partnerów
     function showCreateQuiz() {
       appDiv.innerHTML = `
-        <h1>Utwórz Quiz dla Par</h1>
-        <p>Wprowadź imiona obu partnerów, aby wygenerować bezpieczny link do quizu.</p>
+        <h1>Quiz dla Zakochanych</h1>
+        <p>Wprowadź imiona obojga partnerów, aby utworzyć quiz.</p>
         <form id="createQuizForm">
           <label for="partner1Name">Imię Partnera 1:</label>
           <input type="text" id="partner1Name" name="partner1Name" required>
@@ -221,35 +238,52 @@
           answers: {}
         };
         saveSession(token, sessionData);
-        // Po utworzeniu quizu wyświetlamy linki do udostępnienia
-        const baseUrl = window.location.origin + window.location.pathname;
-        appDiv.innerHTML = `
-          <h2>Quiz został utworzony!</h2>
-          <p>Udostępnij poniższe linki odpowiednim osobom:</p>
-          <p><strong>${partner1Name}:</strong></p>
-          <div class="link-box">${baseUrl}?token=${token}&partner=1</div>
-          <p><strong>${partner2Name}:</strong></p>
-          <div class="link-box">${baseUrl}?token=${token}&partner=2</div>
-          <button id="newQuizBtn">Utwórz nowy quiz</button>
-        `;
-        document.getElementById('newQuizBtn').addEventListener('click', () => {
-          window.location.href = baseUrl;
-        });
+        // Przekierowanie – wyświetl stronę z linkiem dla Partnera 2 i przyciskiem kopiowania
+        showLinkPage(sessionData);
       });
     }
 
-    // Formularz quizu – partner odpowiada na 50 pytań pogrupowanych po kategoriach
+    // Strona wyświetlająca link dla partnera 2 z przyciskiem do kopiowania
+    function showLinkPage(sessionData) {
+      const baseUrl = window.location.origin + window.location.pathname;
+      const partner2Link = `${baseUrl}?token=${sessionData.token}&partner=2`;
+      appDiv.innerHTML = `
+        <h2>Quiz Utworzony!</h2>
+        <p>Wyślij ten link swojemu partnerowi, aby mógł wypełnić quiz:</p>
+        <div class="link-box" id="partner2Link">${partner2Link}</div>
+        <button id="copyBtn">Kopiuj link</button>
+        <hr>
+        <p>Jeśli chcesz, możesz już wypełnić quiz jako <strong>${sessionData.partner1Name}</strong>:</p>
+        <a href="${baseUrl}?token=${sessionData.token}&partner=1"><button>Przejdź do quizu</button></a>
+        <button id="newQuizBtn" style="background: #6c757d;">Utwórz nowy quiz</button>
+      `;
+      document.getElementById('copyBtn').addEventListener('click', function() {
+        const linkText = document.getElementById('partner2Link').innerText;
+        navigator.clipboard.writeText(linkText).then(function() {
+          alert("Link został skopiowany do schowka!");
+        }, function(err) {
+          alert("Wystąpił błąd podczas kopiowania linku.");
+        });
+      });
+      document.getElementById('newQuizBtn').addEventListener('click', () => {
+        window.location.href = window.location.origin + window.location.pathname;
+      });
+    }
+
+    // Formularz quizu – partner odpowiada na 50 pytań (porównawczych)
     function showQuizForm(sessionData, partnerNum) {
       const partnerName = partnerNum === "1" ? sessionData.partner1Name : sessionData.partner2Name;
       let formHtml = `<h2>Quiz dla ${partnerName}</h2>
-        <p>Odpowiedz na poniższe pytania (skala 1-10):</p>
+        <p>Odpowiedz na poniższe pytania, wybierając wartość w skali 1-10.<br>
+        <small>(1 – bardziej cecha <em>${sessionData.partner1Name}</em>, 10 – bardziej cecha <em>${sessionData.partner2Name}</em>, 5 – równo)</small></p>
         <form id="quizForm">`;
       quizData.forEach(category => {
         formHtml += `<fieldset>
           <legend>${category.category}</legend>`;
         category.questions.forEach(q => {
+          const formattedText = formatQuestion(q.text, sessionData.partner1Name, sessionData.partner2Name);
           formHtml += `
-            <label for="${q.id}">${q.text}</label>
+            <label for="${q.id}">${formattedText}</label>
             <input type="number" id="${q.id}" name="${q.id}" min="1" max="10" required>
           `;
         });
@@ -279,7 +313,7 @@
       });
     }
 
-    // Wyliczanie i wyświetlanie wyników – ogólna zgodność oraz wyniki dla każdej kategorii
+    // Wyliczanie i wyświetlanie wyników – ogólna zgodność oraz wyniki per kategoria
     function showResults(sessionData) {
       const answers1 = sessionData.answers.partner1;
       const answers2 = sessionData.answers.partner2;
@@ -296,7 +330,7 @@
         });
         totalDifference += catDifference;
         totalQuestions += catQuestions;
-        const maxDiffCat = catQuestions * 9; // maksymalna różnica dla kategorii (przy skali 1-10)
+        const maxDiffCat = catQuestions * 9;
         const similarityCat = 100 - ((catDifference / maxDiffCat) * 100);
         categoryResultsHtml += `<li><strong>${category.category}:</strong> Zgodność: ${similarityCat.toFixed(2)}%</li>`;
       });
