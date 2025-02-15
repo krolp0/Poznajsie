@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quiz dla Par</title>
+  <style>
+    /* Podstawowe style oraz responsywność */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f0f2f5;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      border-radius: 8px;
+      margin-top: 30px;
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    p, li {
+      line-height: 1.6;
+    }
+    button {
+      background: #007BFF;
+      border: none;
+      padding: 10px 20px;
+      color: #fff;
+      cursor: pointer;
+      border-radius: 5px;
+      margin-top: 15px;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    form {
+      display: flex;
+      flex-direction: column;
+    }
+    label {
+      margin-top: 10px;
+    }
+    input[type="number"] {
+      padding: 8px;
+      margin-top: 5px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    @media (max-width: 600px) {
+      .container {
+        padding: 10px;
+        margin-top: 10px;
+      }
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="app">
+    <!-- Treść wstrzykiwana przez JavaScript -->
+  </div>
+
+  <script>
+    // Odczyt parametrów URL, aby sprawdzić, czy użytkownik jest partnerem 1 lub 2.
+    const urlParams = new URLSearchParams(window.location.search);
+    const partner = urlParams.get('partner'); // oczekiwane wartości: "1" lub "2"
+
+    // Definicja pytań – przykładowo 3 pytania z oceną w skali 1-10.
+    const questions = [
+      { id: "q1", text: "Jak oceniasz poziom naszej komunikacji (1-10)?" },
+      { id: "q2", text: "Jak dobrze pamiętasz ważne daty w naszym związku (1-10)?" },
+      { id: "q3", text: "Jak bardzo jesteś zadowolony/zadowolona z wspólnie spędzanego czasu (1-10)?" }
+    ];
+
+    const appDiv = document.getElementById('app');
+
+    // Funkcja wyświetlająca stronę startową
+    function showLanding() {
+      appDiv.innerHTML = `
+        <h1>Quiz dla Par</h1>
+        <p>Zapraszamy do wzięcia udziału w quizie, który pomoże Wam sprawdzić, jak dobrze się znacie.</p>
+        <p>Aby rozpocząć, użyj linku odpowiedniego dla Twojej roli:</p>
+        <ul>
+          <li>Partner 1: <a href="?partner=1">?partner=1</a></li>
+          <li>Partner 2: <a href="?partner=2">?partner=2</a></li>
+        </ul>
+      `;
+    }
+
+    // Funkcja wyświetlająca formularz quizu
+    function showQuizForm() {
+      let formHtml = `<h2>Quiz - Partner ${partner}</h2>
+        <form id="quizForm">`;
+      questions.forEach(q => {
+        formHtml += `
+          <label for="${q.id}">${q.text}</label>
+          <input type="number" id="${q.id}" name="${q.id}" min="1" max="10" required>
+        `;
+      });
+      formHtml += `
+          <button type="submit">Zapisz odpowiedzi</button>
+        </form>
+      `;
+      appDiv.innerHTML = formHtml;
+      
+      document.getElementById('quizForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        let answers = {};
+        questions.forEach(q => {
+          answers[q.id] = formData.get(q.id);
+        });
+        
+        // Zapis odpowiedzi w localStorage (dla celów demonstracyjnych)
+        let coupleAnswers = JSON.parse(localStorage.getItem('coupleAnswers')) || {};
+        coupleAnswers['partner' + partner] = answers;
+        localStorage.setItem('coupleAnswers', JSON.stringify(coupleAnswers));
+        
+        // Jeśli oboje partnerzy odpowiedzieli, wyświetl wyniki; w przeciwnym razie poinformuj o oczekiwaniu.
+        if (coupleAnswers.partner1 && coupleAnswers.partner2) {
+          showResults(coupleAnswers);
+        } else {
+          appDiv.innerHTML = `<p>Dziękujemy za zapisanie odpowiedzi. Czekamy na odpowiedzi drugiego partnera.</p>`;
+        }
+      });
+    }
+
+    // Funkcja wyświetlająca wyniki i statystyki
+    function showResults(coupleAnswers) {
+      const answers1 = coupleAnswers.partner1;
+      const answers2 = coupleAnswers.partner2;
+      let totalDifference = 0;
+      const maxDifferencePerQuestion = 9; // przy skali 1-10, maksymalna różnica to 9
+      const totalPossible = questions.length * maxDifferencePerQuestion;
+      
+      questions.forEach(q => {
+        totalDifference += Math.abs(answers1[q.id] - answers2[q.id]);
+      });
+      
+      // Obliczamy procentową zgodność (im mniejsza różnica, tym większa zgodność)
+      const similarity = 100 - ((totalDifference / totalPossible) * 100);
+      
+      appDiv.innerHTML = `
+        <h2>Wyniki</h2>
+        <p>Wasza zgodność wynosi: <strong>${similarity.toFixed(2)}%</strong></p>
+        <h3>Szczegóły:</h3>
+        <ul>
+          ${questions.map(q => {
+            return `<li>${q.text} - Partner 1: ${answers1[q.id]}, Partner 2: ${answers2[q.id]}</li>`;
+          }).join('')}
+        </ul>
+        <button id="resetBtn">Resetuj Quiz</button>
+      `;
+      
+      // Reset quizu (czyści localStorage i wraca do strony startowej)
+      document.getElementById('resetBtn').addEventListener('click', function() {
+        localStorage.removeItem('coupleAnswers');
+        location.href = location.pathname;
+      });
+    }
+
+    // Decyzja, którą stronę wyświetlić: landing page czy formularz quizu
+    if (!partner) {
+      showLanding();
+    } else {
+      showQuizForm();
+    }
+  </script>
+</body>
+</html>
