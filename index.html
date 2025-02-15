@@ -230,10 +230,10 @@
           token: token,
           partner1Name: p1,
           partner2Name: p2,
-          answers: {}
+          answers: {}  // tu będziemy zapisywać odpowiedzi jako obiekty
         };
         saveSession(token, sessionData);
-        // Przekieruj Partnera 1 do strony (dodajemy token i partner=1 w URL)
+        // Przekierowanie Partnera 1 (dodajemy token i partner=1 w URL)
         window.location.href = window.location.origin + window.location.pathname + `?token=${token}&partner=1`;
       });
     }
@@ -299,7 +299,7 @@
       });
     }
 
-    // Krok 4: Rozpoczęcie quizu – budujemy liniową tablicę pytań z wybranych kategorii
+    // Krok 4: Rozpoczęcie quizu – budujemy liniową tablicę pytań z wybranych kategorii i zapisujemy ją w sesji
     function startQuiz(sessionData, partner) {
       let quizQuestions = [];
       sessionData.selectedCategories.forEach(cat => {
@@ -308,11 +308,13 @@
           quizQuestions.push({ ...q, category: cat.category });
         });
       });
-      // Inicjalizujemy tablicę odpowiedzi dla danego partnera
+      // Zapisujemy stałą kolejność pytań w sesji
+      sessionData.quizQuestions = quizQuestions;
+      // Inicjalizujemy odpowiedzi dla danego partnera jako obiekt (klucz: id pytania)
       if (!sessionData.answers["partner" + partner]) {
-        sessionData.answers["partner" + partner] = [];
+        sessionData.answers["partner" + partner] = {};
       }
-      // Rozpoczynamy od pierwszego pytania
+      saveSession(sessionData.token, sessionData);
       showQuestion(0, quizQuestions, sessionData, partner);
     }
 
@@ -351,33 +353,35 @@
       tiles.forEach(tile => {
         tile.addEventListener('click', function() {
           const answer = this.getAttribute('data-answer');
-          sessionData.answers["partner" + partner].push({
-            id: current.id,
+          // Zapisujemy odpowiedź w obiekcie, kluczujemy po id pytania
+          sessionData.answers["partner" + partner][current.id] = {
             category: current.category,
             type: current.type,
             answer: answer
-          });
+          };
           saveSession(sessionData.token, sessionData);
           showQuestion(index + 1, quizQuestions, sessionData, partner);
         });
       });
     }
 
-    // Krok 6: Wyświetlenie wyników quizu – obliczamy procent zgodności (ogólną i per kategorię)
+    // Krok 6: Wyświetlenie wyników quizu – porównujemy odpowiedzi na podstawie quizQuestions
     function showQuizResults(sessionData) {
+      const quizQuestions = sessionData.quizQuestions;
       const answers1 = sessionData.answers.partner1;
       const answers2 = sessionData.answers.partner2;
-      if (!answers1 || !answers2 || answers1.length !== answers2.length) {
+      // Sprawdzamy, czy odpowiedzi są kompletne
+      if (!answers1 || !answers2 || Object.keys(answers1).length !== quizQuestions.length || Object.keys(answers2).length !== quizQuestions.length) {
         appDiv.innerHTML = `<p>Oczekiwanie na zakończenie quizu przez oboje partnerów.</p>`;
         return;
       }
-      const total = answers1.length;
+      let total = quizQuestions.length;
       let agreements = 0;
       let categoryStats = {};
-      for (let i = 0; i < total; i++) {
-        const a1 = answers1[i].answer;
-        const a2 = answers2[i].answer;
-        const cat = answers1[i].category;
+      quizQuestions.forEach(q => {
+        const a1 = answers1[q.id] ? answers1[q.id].answer : null;
+        const a2 = answers2[q.id] ? answers2[q.id].answer : null;
+        const cat = q.category;
         if (!categoryStats[cat]) {
           categoryStats[cat] = { total: 0, agree: 0 };
         }
@@ -386,7 +390,7 @@
           agreements++;
           categoryStats[cat].agree++;
         }
-      }
+      });
       const overallAgreement = ((agreements / total) * 100).toFixed(2);
       let categoryResults = "";
       for (let cat in categoryStats) {
