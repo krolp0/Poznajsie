@@ -49,14 +49,21 @@ if (!token) {
         };
       }
     } else if (partner === "2") {
-      if (!sessionData.quizQuestions || sessionData.quizQuestions.length === 0) {
-        appDiv.innerHTML = `<p>Partner 1 nie skonfigurował jeszcze quizu.</p>`;
-        return;
+      // Mechanizm odpytywania dla Partnera 2 – czeka, aż quiz zostanie skonfigurowany przez Partnera 1
+      function waitForQuizConfig() {
+        loadQuizRow(token).then(row => {
+          const updatedSessionData = row?.session_data || {};
+          if (!updatedSessionData.quizQuestions || updatedSessionData.quizQuestions.length === 0) {
+            appDiv.innerHTML = `<p>Partner 1 nie skonfigurował jeszcze quizu. Czekaj...</p>`;
+            setTimeout(waitForQuizConfig, 1000); // sprawdzaj ponownie za 1 sekundę
+          } else {
+            startQuiz(token, updatedSessionData, "2", appDiv, () => {
+              computeAndShowResults(token, appDiv);
+            });
+          }
+        });
       }
-      // Rozpocznij quiz dla partnera 2
-      startQuiz(token, sessionData, "2", appDiv, () => {
-        computeAndShowResults(token, appDiv);
-      });
+      waitForQuizConfig();
     } else {
       appDiv.innerHTML = "<p>Błąd: Nieprawidłowy parametr partner.</p>";
     }
