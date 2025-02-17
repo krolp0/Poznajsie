@@ -1,4 +1,4 @@
-/* Reset stylów */
+/* Reset stylów i podstawy */
 body, h1, h2, h3, p, ul, li, form {
   margin: 0;
   padding: 0;
@@ -138,7 +138,7 @@ li {
   margin-bottom: 15px;
 }
 
-/* Style formularza */
+/* Formularze ogólne */
 form {
   display: flex;
   flex-direction: column;
