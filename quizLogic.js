@@ -83,7 +83,7 @@ function showNextQuestion(
 
   // Formatowanie treści pytania z użyciem imion
   const questionText = formatText(current.text, p1, p2);
-  // Dodajemy nazwę kategorii w treści pytania (bez modyfikacji ui.js)
+  // Dodajemy nazwę kategorii w treści pytania
   const questionWithCategory = `
     <span class="category-label">Kategoria: ${current.category}</span><br />
     ${questionText}
@@ -150,8 +150,7 @@ async function saveFinalAnswers(token, sessionData, partner, localAnswers) {
 }
 
 /**
- * Wyświetlenie wyników quizu, w tym zielone tło przy zgodnych odpowiedziach
- * i czerwone przy niezgodnych, oraz imiona zamiast "Partner 1"/"Partner 2".
+ * Wyświetlenie wyników quizu
  */
 export async function computeAndShowResults(token, appDiv) {
   const row = await loadQuizRow(token);
@@ -184,7 +183,7 @@ export async function computeAndShowResults(token, appDiv) {
   const detailsHTML = quizQuestions.map(q => {
     const questionText = formatText(q.text, p1, p2);
 
-    // surowe odpowiedzi: "1" lub "2" (comparative) lub "tak"/"nie" (yesno)
+    // surowe odpowiedzi: "1" / "2" (comparative) lub "tak"/"nie" (yesno)
     const a1 = answers1[q.id]?.answer;
     const a2 = answers2[q.id]?.answer;
 
