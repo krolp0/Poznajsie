@@ -1,33 +1,8 @@
 import { fullQuizData } from "./quizData.js";
-import { upsertQuizRow } from "./database.js";
 
-export function showCreateQuiz(appDiv, generateToken, onQuizCreated) {
-  appDiv.innerHTML = `
-    <h1>Quiz dla Zakochanych</h1>
-    <p>Wprowadź imiona obojga partnerów, aby utworzyć quiz.</p>
-    <form id="createQuizForm">
-      <label for="partner1Name">Imię Partnera 1:</label>
-      <input type="text" id="partner1Name" name="partner1Name" required />
-      <label for="partner2Name">Imię Partnera 2:</label>
-      <input type="text" id="partner2Name" name="partner2Name" required />
-      <button type="submit">Utwórz Quiz</button>
-    </form>
-  `;
-  document.getElementById("createQuizForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const p1 = e.target.partner1Name.value.trim();
-    const p2 = e.target.partner2Name.value.trim();
-    if (!p1 || !p2) {
-      alert("Podaj oba imiona.");
-      return;
-    }
-    const token = generateToken();
-    const sessionData = { partner1Name: p1, partner2Name: p2, selectedCategories: [], quizQuestions: [] };
-    await upsertQuizRow(token, sessionData, {}, {});
-    onQuizCreated(token, sessionData);
-  });
-}
-
+/**
+ * Wyświetlanie wyboru kategorii (Partner 1).
+ */
 export function showCategorySelection(appDiv, sessionData, onCategoriesSelected) {
   const categoryOptions = fullQuizData.map((cat, index) => {
     return `<div>
@@ -37,6 +12,7 @@ export function showCategorySelection(appDiv, sessionData, onCategoriesSelected)
               </label>
             </div>`;
   }).join("");
+
   appDiv.innerHTML = `
     <h2>Wybierz kategorie quizu</h2>
     <form id="categoryForm">
@@ -44,7 +20,8 @@ export function showCategorySelection(appDiv, sessionData, onCategoriesSelected)
       <button type="submit">Zapisz wybór kategorii</button>
     </form>
   `;
-  document.getElementById("categoryForm").addEventListener("submit", async (e) => {
+
+  document.getElementById("categoryForm").addEventListener("submit", (e) => {
     e.preventDefault();
     const selected = Array.from(document.querySelectorAll('input[name="category"]:checked')).map(el => el.value);
     if (!selected.length) {
@@ -57,6 +34,9 @@ export function showCategorySelection(appDiv, sessionData, onCategoriesSelected)
   });
 }
 
+/**
+ * Wyświetlanie linku dla Partnera 2 i przycisku "Rozpocznij quiz" dla Partnera 1
+ */
 export function showQuizLink(appDiv, token, sessionData) {
   const baseUrl = window.location.origin + window.location.pathname;
   const partner2Link = `${baseUrl}?token=${token}&partner=2`;
@@ -76,13 +56,15 @@ export function showQuizLink(appDiv, token, sessionData) {
     });
   });
   document.getElementById("startQuizBtn").addEventListener("click", () => {
-    // Ustawiamy globalny callback – main.js odczyta go, aby rozpocząć quiz dla partnera 1
     if (typeof window.startQuizCallback === "function") {
       window.startQuizCallback("1");
     }
   });
 }
 
+/**
+ * Wyświetlanie pojedynczego pytania
+ */
 export function showQuestion(appDiv, questionIndex, totalQuestions, questionText, optionsHTML, onAnswerSelected) {
   appDiv.innerHTML = `
     <div class="progress">Pytanie ${questionIndex + 1} z ${totalQuestions}</div>
@@ -99,6 +81,9 @@ export function showQuestion(appDiv, questionIndex, totalQuestions, questionText
   });
 }
 
+/**
+ * Wyświetlanie wyników quizu
+ */
 export function showQuizResults(appDiv, p1, p2, overallAgreement, detailsHTML, onReset) {
   appDiv.innerHTML = `
     <h2>Wyniki Quizu</h2>
@@ -110,3 +95,10 @@ export function showQuizResults(appDiv, p1, p2, overallAgreement, detailsHTML, o
   `;
   document.getElementById("resetBtn").addEventListener("click", onReset);
 }
+
+/* 
+// Tę funkcję można całkowicie usunąć lub zostawić zakomentowaną – nie jest już potrzebna
+export function showCreateQuiz(...) {
+  // ...
+}
+*/
