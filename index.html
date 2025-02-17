@@ -10,7 +10,7 @@
     rel="stylesheet"
   />
   <style>
-    /* Dodatkowe style tylko dla strony startowej */
+    /* Dodatkowe style dla strony startowej */
     .start-container {
       text-align: center;
       padding: 40px 20px;
@@ -63,10 +63,14 @@
   </style>
 </head>
 <body>
+  <!-- Ten kontener "app" jest używany dalej przez quiz (po utworzeniu tokenu) -->
   <div id="app" class="container">
+    <!-- Strona startowa z ładnym formularzem -->
     <div class="start-container">
       <h1 class="start-title">Quiz dla Zakochanych</h1>
-      <p class="start-subtitle">Wprowadź imiona obojga partnerów, aby rozpocząć wspólną zabawę i sprawdzić, jak dobrze się znacie!</p>
+      <p class="start-subtitle">
+        Wprowadź imiona obojga partnerów, aby rozpocząć wspólną zabawę i sprawdzić, jak dobrze się znacie!
+      </p>
       <div class="start-form">
         <form id="createQuizForm">
           <div>
@@ -84,6 +88,7 @@
       </div>
     </div>
   </div>
+
   <!-- Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <!-- Główny moduł aplikacji -->
