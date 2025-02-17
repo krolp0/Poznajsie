@@ -1,6 +1,6 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
 
-// Tworzymy klienta Supabase (SDK został załadowany przez CDN i jest dostępny jako window.supabase)
+// Tworzymy klienta Supabase
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export async function loadQuizRow(token) {
