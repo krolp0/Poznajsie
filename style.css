@@ -1,3 +1,4 @@
+/* Podstawowe style tła i kontenera */
 body {
   margin: 0;
   padding: 0;
@@ -19,18 +20,21 @@ h1, h2, h3 {
   color: #d6336c;
 }
 
-.question-text {
-  font-size: 24px;
-  margin-bottom: 10px;
-}
-
+/* Etykieta kategorii przy pytaniu */
 .category-label {
   font-size: 16px;
   color: #555;
-  text-align: center;
-  margin-bottom: 5px;
+  font-weight: bold;
 }
 
+/* Tekst pytania */
+.question-text {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+/* Kontener dla kafelków odpowiedzi */
 .tile-container {
   display: flex;
   justify-content: space-around;
@@ -53,12 +57,14 @@ h1, h2, h3 {
   background: #f1c0c0;
 }
 
+/* Pasek postępu */
 .progress {
   text-align: center;
   margin-top: 10px;
   color: #555;
 }
 
+/* Link dla Partnera 2 */
 .link-box {
   background: #f8d7da;
   padding: 10px;
@@ -69,6 +75,7 @@ h1, h2, h3 {
   font-weight: bold;
 }
 
+/* Przycisk */
 button {
   background: #d6336c;
   border: none;
@@ -82,4 +89,21 @@ button {
 
 button:hover {
   background: #b02a47;
+}
+
+/* Nowe klasy: zielone tło dla zgodnych odpowiedzi, czerwone dla niezgodnych */
+.match-answer {
+  background-color: #d4edda;          /* jasny zielony */
+  border-left: 4px solid #28a745;     /* ciemniejszy zielony */
+  margin-bottom: 10px;
+  padding: 8px;
+  border-radius: 6px;
+}
+
+.mismatch-answer {
+  background-color: #f8d7da;          /* jasny czerwony */
+  border-left: 4px solid #dc3545;     /* ciemniejszy czerwony */
+  margin-bottom: 10px;
+  padding: 8px;
+  border-radius: 6px;
 }
