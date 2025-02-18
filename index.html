@@ -63,7 +63,7 @@
   </style>
 </head>
 <body>
-  <!-- Ten kontener "app" jest używany dalej przez quiz (po utworzeniu tokenu) -->
+  <!-- Kontener "app" dla całej aplikacji -->
   <div id="app" class="container">
     <!-- Strona startowa z ładnym formularzem -->
     <div class="start-container">
@@ -89,6 +89,8 @@
     </div>
   </div>
 
+  <!-- Dołączenie biblioteki QRCode.js przez CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <!-- Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <!-- Główny moduł aplikacji -->
