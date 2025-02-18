@@ -1,5 +1,5 @@
 import { showCategorySelection, showQuizLink } from "./ui.js";
-import { startQuiz, computeAndShowResults } from "./quizLogic.js";
+import { startSyncQuiz, computeAndShowResults } from "./quizLogic.js";
 import { loadQuizRow, upsertQuizRow } from "./database.js";
 
 const appDiv = document.getElementById("app");
