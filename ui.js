@@ -1,7 +1,7 @@
 import { fullQuizData } from "./quizData.js";
 
 /**
- * Wyświetlanie wyboru kategorii (Partner 1).
+ * Wyświetlanie wyboru kategorii (dla Partnera 1)
  */
 export function showCategorySelection(appDiv, sessionData, onCategoriesSelected) {
   const categoryOptions = fullQuizData.map((cat, index) => {
@@ -35,7 +35,7 @@ export function showCategorySelection(appDiv, sessionData, onCategoriesSelected)
 }
 
 /**
- * Wyświetlanie linku dla Partnera 2 i przycisku "Rozpocznij quiz" dla Partnera 1
+ * Wyświetlanie linku dla Partnera 2 oraz przycisków do kopiowania, generowania QR Code i skanowania
  */
 export function showQuizLink(appDiv, token, sessionData) {
   const baseUrl = window.location.origin + window.location.pathname;
@@ -46,6 +46,11 @@ export function showQuizLink(appDiv, token, sessionData) {
     <div class="link-box" id="partner2Link">${partner2Link}</div>
     <button id="copyBtn">Kopiuj link</button>
     <hr />
+    <p>Lub udostępnij QR Code, który Partner 2 może zeskanować:</p>
+    <div id="qrcode" style="margin: 0 auto; width: 150px; height: 150px;"></div>
+    <br />
+    <button id="scanQRBtn">Skanuj QR Code</button>
+    <hr />
     <p>Jako <strong>${sessionData.partner1Name}</strong> kliknij przycisk, aby rozpocząć quiz.</p>
     <button id="startQuizBtn">Rozpocznij quiz</button>
   `;
@@ -54,6 +59,20 @@ export function showQuizLink(appDiv, token, sessionData) {
     navigator.clipboard.writeText(linkText).then(() => {
       alert("Link został skopiowany!");
     });
+  });
+  // Generowanie QR Code z linkiem
+  new QRCode(document.getElementById("qrcode"), {
+    text: partner2Link,
+    width: 150,
+    height: 150
+  });
+  // Obsługa przycisku do skanowania QR Code
+  document.getElementById("scanQRBtn").addEventListener("click", () => {
+    if (typeof scanQRCode === "function") {
+      scanQRCode();
+    } else {
+      alert("Funkcja skanowania QR Code nie jest dostępna.");
+    }
   });
   document.getElementById("startQuizBtn").addEventListener("click", () => {
     if (typeof window.startQuizCallback === "function") {
@@ -95,10 +114,3 @@ export function showQuizResults(appDiv, p1, p2, overallAgreement, detailsHTML, o
   `;
   document.getElementById("resetBtn").addEventListener("click", onReset);
 }
-
-/* 
-// Tę funkcję można całkowicie usunąć lub zostawić zakomentowaną – nie jest już potrzebna
-export function showCreateQuiz(...) {
-  // ...
-}
-*/
