@@ -17,9 +17,7 @@ const token = getQueryParam("token");
 const partner = getQueryParam("partner");
 
 if (!token) {
-  /**
-   * Brak tokenu => używamy statycznego formularza z index.html (id="createQuizForm")
-   */
+  // Używamy statycznego formularza z index.html
   const formEl = document.getElementById("createQuizForm");
   if (formEl) {
     formEl.addEventListener("submit", async (e) => {
@@ -30,36 +28,28 @@ if (!token) {
         alert("Podaj oba imiona.");
         return;
       }
-      // Generujemy token
       const newToken = generateToken();
-      // Tworzymy sessionData z pustymi kategoriami i pytaniami
       const sessionData = {
         partner1Name: p1,
         partner2Name: p2,
         selectedCategories: [],
         quizQuestions: []
       };
-      // Zapisujemy nowy wiersz w bazie
       await upsertQuizRow(newToken, sessionData, {}, {});
-      // Przechodzimy do widoku Partnera 1 (kategorie)
       window.location.href = `?token=${newToken}&partner=1`;
     });
   }
 } else {
-  // Mamy token => sprawdzamy, czy partner = 1 czy partner = 2
   loadQuizRow(token).then((row) => {
     if (!row) {
       appDiv.innerHTML = "<p>Błąd: Nie znaleziono quizu w bazie. Sprawdź link.</p>";
       return;
     }
     const sessionData = row.session_data || {};
-
     if (partner === "1") {
-      // Jeśli kategorie nie zostały wybrane – wybór kategorii
       if (!sessionData.selectedCategories || sessionData.selectedCategories.length === 0) {
         showCategorySelection(appDiv, sessionData, (updatedSessionData) => {
           showQuizLink(appDiv, token, updatedSessionData);
-          // Callback do startu quizu partnera 1
           window.startQuizCallback = (partnerId) => {
             startQuiz(token, updatedSessionData, partnerId, appDiv, () => {
               computeAndShowResults(token, appDiv);
@@ -67,7 +57,6 @@ if (!token) {
           };
         });
       } else {
-        // Kategorie już wybrane => link dla Partnera 2 + start quizu
         showQuizLink(appDiv, token, sessionData);
         window.startQuizCallback = (partnerId) => {
           startQuiz(token, sessionData, partnerId, appDiv, () => {
@@ -76,7 +65,6 @@ if (!token) {
         };
       }
     } else if (partner === "2") {
-      // Partner 2 czeka, aż Partner 1 skonfiguruje quiz
       function waitForQuizConfig() {
         loadQuizRow(token).then((row2) => {
           const updatedSessionData = row2?.session_data || {};
@@ -84,7 +72,6 @@ if (!token) {
             appDiv.innerHTML = `<p>Partner 1 nie skonfigurował jeszcze quizu. Czekaj...</p>`;
             setTimeout(waitForQuizConfig, 1000);
           } else {
-            // Start quizu Partnera 2
             startQuiz(token, updatedSessionData, "2", appDiv, () => {
               computeAndShowResults(token, appDiv);
             });
@@ -97,3 +84,38 @@ if (!token) {
     }
   });
 }
+
+/**
+ * Funkcja skanowania QR Code przy użyciu phonegap-plugin-barcodescanner.
+ * Wymaga instalacji pluginu: 
+ *   ionic cordova plugin add phonegap-plugin-barcodescanner
+ *   npm install @ionic-native/barcode-scanner
+ */
+function scanQRCode() {
+  if (cordova && cordova.plugins && cordova.plugins.barcodeScanner) {
+    cordova.plugins.barcodeScanner.scan(
+      function (result) {
+        if (!result.cancelled && result.text) {
+          window.location.href = result.text;
+        }
+      },
+      function (error) {
+        alert("Skanowanie nie powiodło się: " + error);
+      },
+      {
+        preferFrontCamera: false,
+        showFlipCameraButton: true,
+        showTorchButton: true,
+        torchOn: false,
+        saveHistory: false,
+        prompt: "Przyłóż aparat do QR Code",
+        resultDisplayDuration: 500,
+        formats: "QR_CODE",
+        orientation: "portrait"
+      }
+    );
+  } else {
+    alert("Funkcja skanowania QR Code nie jest dostępna.");
+  }
+}
+window.scanQRCode = scanQRCode;
