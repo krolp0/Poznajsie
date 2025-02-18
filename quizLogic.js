@@ -2,17 +2,20 @@ import { loadQuizRow, upsertQuizRow } from "./database.js";
 import { fullQuizData } from "./quizData.js";
 import { showQuestion, showQuizResults } from "./ui.js";
 
+/**
+ * Zamienia {p1} i {p2} na imiona partnerów.
+ */
 function formatText(text, p1, p2) {
   return text.replace(/{p1}/g, p1).replace(/{p2}/g, p2);
 }
 
 /**
  * Inicjuje quiz w trybie synchronicznym.
- * Buduje listę pytań i uruchamia cykliczną synchronizację.
+ * Buduje listę pytań oraz uruchamia funkcję synchronizującą.
  */
 export function startSyncQuiz(token, sessionData, partner, appDiv, onQuizCompleted) {
   let quizQuestions = [];
-  const cats = sessionData.selectedCategories && sessionData.selectedCategories.length > 0
+  const cats = (sessionData.selectedCategories && sessionData.selectedCategories.length > 0)
     ? sessionData.selectedCategories
     : fullQuizData;
   cats.forEach(cat => {
@@ -25,28 +28,34 @@ export function startSyncQuiz(token, sessionData, partner, appDiv, onQuizComplet
 }
 
 /**
- * Funkcja synchronizująca – na podstawie liczby odpowiedzi obu graczy określa bieżący indeks pytania.
- * Obie strony wyświetlają to samo pytanie. Jeśli aktualny gracz jeszcze nie odpowiedział, wyświetla pytanie;
- * jeśli już odpowiedział, ale drugi nie – pokazuje komunikat oczekiwania.
+ * Główna funkcja synchronizująca – oblicza bieżący indeks pytania jako minimum liczby odpowiedzi obu graczy.
+ * Jeśli na danym urządzeniu dany gracz jeszcze nie odpowiedział, wyświetla pytanie z opcjami.
+ * Jeśli już odpowiedział, ale drugi jeszcze nie – wyświetla komunikat oczekiwania.
+ * Gdy oboje udzielą odpowiedzi, przechodzi do kolejnego pytania.
  */
 function syncQuiz(quizQuestions, token, sessionData, partner, appDiv, onQuizCompleted) {
   loadQuizRow(token).then(row => {
+    if (!row) {
+      appDiv.innerHTML = "<p>Błąd: Nie można załadować quizu z bazy.</p>";
+      return;
+    }
     const p1Answers = row.partner1_answers || {};
     const p2Answers = row.partner2_answers || {};
     const count1 = Object.keys(p1Answers).length;
     const count2 = Object.keys(p2Answers).length;
     const currentIndex = Math.min(count1, count2);
 
+    // Jeśli quiz ukończony, przechodzimy do wyników
     if (currentIndex >= quizQuestions.length) {
       computeAndShowResults(token, appDiv);
       return;
     }
 
     const currentQuestion = quizQuestions[currentIndex];
-    const currentPlayerAnswers = partner === "1" ? p1Answers : p2Answers;
-    const otherPlayerAnswers = partner === "1" ? p2Answers : p1Answers;
+    const currentPlayerAnswers = (partner === "1") ? p1Answers : p2Answers;
+    const otherPlayerAnswers = (partner === "1") ? p2Answers : p1Answers;
 
-    // Jeśli aktualny gracz jeszcze nie odpowiedział, wyświetlamy pytanie
+    // Jeśli dany gracz jeszcze nie odpowiedział na bieżące pytanie – wyświetlamy pytanie.
     if (currentPlayerAnswers[currentQuestion.id] === undefined) {
       const p1 = sessionData.partner1Name;
       const p2 = sessionData.partner2Name;
@@ -65,7 +74,7 @@ function syncQuiz(quizQuestions, token, sessionData, partner, appDiv, onQuizComp
         `;
       }
       showQuestion(appDiv, currentIndex, quizQuestions.length, questionWithCategory, optionsHTML, (answer) => {
-        // Zapisujemy odpowiedź aktualnego gracza
+        // Po wybraniu odpowiedzi zapisujemy ją do bazy
         loadQuizRow(token).then(latestRow => {
           const updatedP1 = latestRow.partner1_answers || {};
           const updatedP2 = latestRow.partner2_answers || {};
@@ -75,21 +84,19 @@ function syncQuiz(quizQuestions, token, sessionData, partner, appDiv, onQuizComp
             updatedP2[currentQuestion.id] = { category: currentQuestion.category, type: currentQuestion.type, answer: answer };
           }
           upsertQuizRow(token, sessionData, updatedP1, updatedP2).then(() => {
-            // Po zapisaniu, zaczynamy polling, by sprawdzić, czy drugi gracz odpowiedział.
+            // Po zapisaniu odpowiedzi, uruchamiamy polling synchronizacyjny
             pollForSync(quizQuestions, token, sessionData, partner, appDiv, currentIndex, onQuizCompleted);
           });
         });
       });
     } else {
-      // Jeśli aktualny gracz odpowiedział, ale drugi nie – pokazujemy komunikat oczekiwania.
+      // Dany gracz już odpowiedział – jeśli drugi nie, pokaż komunikat oczekiwania.
       if (otherPlayerAnswers[currentQuestion.id] === undefined) {
-        const waitingFor = partner === "1" ? sessionData.partner2Name : sessionData.partner1Name;
+        const waitingFor = (partner === "1") ? sessionData.partner2Name : sessionData.partner1Name;
         appDiv.innerHTML = `<p>Czekaj na odpowiedź od <strong>${waitingFor}</strong>...</p>`;
-        setTimeout(() => {
-          pollForSync(quizQuestions, token, sessionData, partner, appDiv, currentIndex, onQuizCompleted);
-        }, 1000);
+        pollForSync(quizQuestions, token, sessionData, partner, appDiv, currentIndex, onQuizCompleted);
       } else {
-        // Obaj odpowiedzieli – przechodzimy do kolejnego pytania.
+        // Obaj udzielili odpowiedzi – przechodzimy do kolejnego pytania.
         setTimeout(() => {
           syncQuiz(quizQuestions, token, sessionData, partner, appDiv, onQuizCompleted);
         }, 500);
@@ -99,19 +106,50 @@ function syncQuiz(quizQuestions, token, sessionData, partner, appDiv, onQuizComp
 }
 
 /**
- * Funkcja pollingowa, która odpytuje bazę co sekundę, aż oboje graczy udzielą odpowiedzi na bieżące pytanie.
+ * Funkcja pollingowa – odpytuje bazę co sekundę, aż druga strona udzieli odpowiedzi na bieżące pytanie.
  */
 function pollForSync(quizQuestions, token, sessionData, partner, appDiv, currentIndex, onQuizCompleted) {
   loadQuizRow(token).then(row => {
+    if (!row) {
+      appDiv.innerHTML = "<p>Błąd: Nie można załadować quizu z bazy.</p>";
+      return;
+    }
     const p1Answers = row.partner1_answers || {};
     const p2Answers = row.partner2_answers || {};
+    // Obliczamy bieżący indeks na nowo – powinniśmy mieć ten sam, jeśli druga strona nie odpowiedziała.
     const newIndex = Math.min(Object.keys(p1Answers).length, Object.keys(p2Answers).length);
     if (newIndex > currentIndex) {
-      // Obaj odpowiedzieli – przechodzimy do synchronizacji kolejnego pytania.
+      // Obie strony udzieliły odpowiedzi – przechodzimy do synchronizacji kolejnego pytania.
       setTimeout(() => {
         syncQuiz(quizQuestions, token, sessionData, partner, appDiv, onQuizCompleted);
       }, 500);
     } else {
+      // Jeśli dany gracz jeszcze nie odpowiedział, upewnij się, że pytanie z opcjami jest widoczne.
+      const currentQuestion = quizQuestions[currentIndex];
+      const currentPlayerAnswers = (partner === "1") ? p1Answers : p2Answers;
+      if (currentPlayerAnswers[currentQuestion.id] === undefined) {
+        // Ponownie wyświetlamy pytanie (jeśli nie zostało już nadpisane).
+        const p1 = sessionData.partner1Name;
+        const p2 = sessionData.partner2Name;
+        const questionText = formatText(currentQuestion.text, p1, p2);
+        const questionWithCategory = `<span class="category-label">Kategoria: ${currentQuestion.category}</span><br />${questionText}`;
+        let optionsHTML = "";
+        if (currentQuestion.type === "comparative") {
+          optionsHTML = `
+            <div class="tile" data-answer="1">${p1}</div>
+            <div class="tile" data-answer="2">${p2}</div>
+          `;
+        } else if (currentQuestion.type === "yesno") {
+          optionsHTML = `
+            <div class="tile" data-answer="tak">Tak</div>
+            <div class="tile" data-answer="nie">Nie</div>
+          `;
+        }
+        showQuestion(appDiv, currentIndex, quizQuestions.length, questionWithCategory, optionsHTML, () => {});
+      }
+      // Jeśli drugi gracz nadal nie odpowiedział, wyświetlamy komunikat
+      const waitingFor = (partner === "1") ? sessionData.partner2Name : sessionData.partner1Name;
+      appDiv.innerHTML = `<p>Czekaj na odpowiedź od <strong>${waitingFor}</strong>...</p>`;
       setTimeout(() => {
         pollForSync(quizQuestions, token, sessionData, partner, appDiv, currentIndex, onQuizCompleted);
       }, 1000);
