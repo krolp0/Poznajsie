@@ -2,16 +2,19 @@ import { loadQuizRow, upsertQuizRow } from "./database.js";
 import { fullQuizData } from "./quizData.js";
 import { showQuestion, showQuizResults } from "./ui.js";
 
+/**
+ * Zastępuje {p1} i {p2} w tekście nazwami partnerów
+ */
 function formatText(text, p1, p2) {
   return text.replace(/{p1}/g, p1).replace(/{p2}/g, p2);
 }
 
 /**
- * Funkcja odpytywania – czeka, aż odpowiedź drugiego partnera dla danego pytania (questionId) będzie dostępna.
+ * Funkcja odpytująca bazę – czeka aż dla danego pytania (questionId) udzielona zostanie odpowiedź przez drugiego partnera.
  */
-function waitForOtherAnswer(token, questionId, partner, callback) {
+function pollForOtherAnswer(token, questionId, partner, callback) {
   function poll() {
-    loadQuizRow(token).then((row) => {
+    loadQuizRow(token).then(row => {
       if (row) {
         const otherAnswers = partner === "1" ? row.partner2_answers : row.partner1_answers;
         if (otherAnswers && otherAnswers[questionId] !== undefined) {
@@ -28,9 +31,68 @@ function waitForOtherAnswer(token, questionId, partner, callback) {
 }
 
 /**
- * Rozpoczęcie quizu dla danego partnera.
+ * Funkcja synchronizująca pytania – na bieżąco określa numer aktualnego pytania
+ * jako liczbę pytań, na które oboje partnerzy udzielili odpowiedzi.
+ */
+function showCurrentQuestion(token, sessionData, partner, appDiv, onQuizCompleted) {
+  loadQuizRow(token).then(row => {
+    const answers1 = row.partner1_answers || {};
+    const answers2 = row.partner2_answers || {};
+    // Liczba pytań, na które oboje udzielili odpowiedzi:
+    const commonAnswersCount = Object.keys(answers1).filter(key => answers2[key] !== undefined).length;
+    const quizQuestions = sessionData.quizQuestions;
+    if (commonAnswersCount >= quizQuestions.length) {
+      // Quiz zakończony
+      computeAndShowResults(token, appDiv);
+      return;
+    }
+    const currentQuestion = quizQuestions[commonAnswersCount];
+    const p1 = sessionData.partner1Name;
+    const p2 = sessionData.partner2Name;
+    const formattedQuestion = formatText(currentQuestion.text, p1, p2);
+    const questionWithCategory = `<span class="category-label">Kategoria: ${currentQuestion.category}</span><br />${formattedQuestion}`;
+    let optionsHTML = "";
+    if (currentQuestion.type === "comparative") {
+      optionsHTML = `
+        <div class="tile" data-answer="1">${p1}</div>
+        <div class="tile" data-answer="2">${p2}</div>
+      `;
+    } else if (currentQuestion.type === "yesno") {
+      optionsHTML = `
+        <div class="tile" data-answer="tak">Tak</div>
+        <div class="tile" data-answer="nie">Nie</div>
+      `;
+    }
+    // Wyświetlamy bieżące pytanie:
+    showQuestion(appDiv, commonAnswersCount, quizQuestions.length, questionWithCategory, optionsHTML, (answer) => {
+      // Aktualizujemy odpowiedź lokalnie i w bazie
+      if (partner === "1") {
+        const updatedAnswers = { ...answers1, [currentQuestion.id]: { category: currentQuestion.category, type: currentQuestion.type, answer: answer } };
+        upsertQuizRow(token, sessionData, updatedAnswers, answers2).then(() => {
+          appDiv.innerHTML = `<p>Czekaj na odpowiedź od <strong>${p2}</strong>...</p>`;
+          pollForOtherAnswer(token, currentQuestion.id, partner, () => {
+            // Po otrzymaniu odpowiedzi drugiego gracza, pokazujemy kolejne pytanie
+            showCurrentQuestion(token, sessionData, partner, appDiv, onQuizCompleted);
+          });
+        });
+      } else {
+        const updatedAnswers = { ...answers2, [currentQuestion.id]: { category: currentQuestion.category, type: currentQuestion.type, answer: answer } };
+        upsertQuizRow(token, sessionData, answers1, updatedAnswers).then(() => {
+          appDiv.innerHTML = `<p>Czekaj na odpowiedź od <strong>${p1}</strong>...</p>`;
+          pollForOtherAnswer(token, currentQuestion.id, partner, () => {
+            showCurrentQuestion(token, sessionData, partner, appDiv, onQuizCompleted);
+          });
+        });
+      }
+    });
+  });
+}
+
+/**
+ * Rozpoczęcie quizu – ustawia pytania i uruchamia funkcję synchronizującą
  */
 export function startQuiz(token, sessionData, partner, appDiv, onQuizCompleted) {
+  // Przygotowanie listy pytań (wybrane kategorie lub pełny zestaw)
   let quizQuestions = [];
   const cats = sessionData.selectedCategories && sessionData.selectedCategories.length > 0
     ? sessionData.selectedCategories
@@ -41,83 +103,24 @@ export function startQuiz(token, sessionData, partner, appDiv, onQuizCompleted) 
     });
   });
   sessionData.quizQuestions = quizQuestions;
+  // Zapisujemy w bazie konfigurację quizu (jeśli jeszcze nie była zapisana)
   loadQuizRow(token).then(existingRow => {
     const existingSessionData = existingRow?.session_data || {};
     const p1Answers = existingRow?.partner1_answers || {};
     const p2Answers = existingRow?.partner2_answers || {};
     const newSessionData = { ...existingSessionData, ...sessionData };
     upsertQuizRow(token, newSessionData, p1Answers, p2Answers).then(() => {
-      let localAnswers = {};
-      showNextQuestion(0, quizQuestions, token, newSessionData, partner, appDiv, localAnswers, onQuizCompleted);
+      // Rozpoczynamy wyświetlanie bieżącego pytania
+      showCurrentQuestion(token, newSessionData, partner, appDiv, onQuizCompleted);
     });
   });
 }
 
-function showNextQuestion(index, quizQuestions, token, sessionData, partner, appDiv, localAnswers, onQuizCompleted) {
-  if (index >= quizQuestions.length) {
-    saveFinalAnswers(token, sessionData, partner, localAnswers).then(() => {
-      onQuizCompleted();
-    });
-    return;
-  }
-  const total = quizQuestions.length;
-  const current = quizQuestions[index];
-  const p1 = sessionData.partner1Name;
-  const p2 = sessionData.partner2Name;
-  const questionText = formatText(current.text, p1, p2);
-  const questionWithCategory = `<span class="category-label">Kategoria: ${current.category}</span><br />${questionText}`;
-  let optionsHTML = "";
-  if (current.type === "comparative") {
-    optionsHTML = `
-      <div class="tile" data-answer="1">${p1}</div>
-      <div class="tile" data-answer="2">${p2}</div>
-    `;
-  } else if (current.type === "yesno") {
-    optionsHTML = `
-      <div class="tile" data-answer="tak">Tak</div>
-      <div class="tile" data-answer="nie">Nie</div>
-    `;
-  }
-  showQuestion(appDiv, index, total, questionWithCategory, optionsHTML, (answer) => {
-    localAnswers[current.id] = { category: current.category, type: current.type, answer: answer };
-    // Po zapisaniu odpowiedzi wyświetlamy komunikat oczekiwania
-    if (partner === "1") {
-      upsertQuizRow(token, sessionData, localAnswers, sessionData.partner2_answers || {}).then(() => {
-        appDiv.innerHTML = `<p>Czekaj na odpowiedź od <strong>${p2}</strong>...</p>`;
-        waitForOtherAnswer(token, current.id, partner, () => {
-          showNextQuestion(index + 1, quizQuestions, token, sessionData, partner, appDiv, localAnswers, onQuizCompleted);
-        });
-      });
-    } else {
-      upsertQuizRow(token, sessionData, sessionData.partner1_answers || {}, localAnswers).then(() => {
-        appDiv.innerHTML = `<p>Czekaj na odpowiedź od <strong>${p1}</strong>...</p>`;
-        waitForOtherAnswer(token, current.id, partner, () => {
-          showNextQuestion(index + 1, quizQuestions, token, sessionData, partner, appDiv, localAnswers, onQuizCompleted);
-        });
-      });
-    }
-  });
-}
-
-async function saveFinalAnswers(token, sessionData, partner, localAnswers) {
-  const row = await loadQuizRow(token);
-  if (!row) {
-    console.error("Nie znaleziono quizu w bazie przy zapisywaniu odpowiedzi.");
-    return;
-  }
-  const finalSessionData = row.session_data || {};
-  const p1Answers = row.partner1_answers || {};
-  const p2Answers = row.partner2_answers || {};
-  if (partner === "1") {
-    const merged1 = { ...p1Answers, ...localAnswers };
-    await upsertQuizRow(token, finalSessionData, merged1, p2Answers);
-  } else {
-    const merged2 = { ...p2Answers, ...localAnswers };
-    await upsertQuizRow(token, finalSessionData, p1Answers, merged2);
-  }
-}
-
+/**
+ * Funkcja wywoływana po zakończeniu quizu – wyświetla wyniki.
+ */
 export async function computeAndShowResults(token, appDiv) {
+  // Obliczamy wspólne odpowiedzi i wyświetlamy wyniki (pozostaje bez zmian)
   const row = await loadQuizRow(token);
   if (!row) {
     appDiv.innerHTML = "<p>Błąd: Nie można załadować quizu z bazy.</p>";
