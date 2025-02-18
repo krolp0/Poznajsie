@@ -3,38 +3,54 @@ import { fullQuizData } from "./quizData.js";
 import { showQuestion, showQuizResults } from "./ui.js";
 
 /**
- * Zastępuje {p1} i {p2} w tekście nazwami partnerów.
+ * Zastępuje {p1} i {p2} w treści pytania odpowiednimi imionami.
  */
 function formatText(text, p1, p2) {
   return text.replace(/{p1}/g, p1).replace(/{p2}/g, p2);
 }
 
 /**
- * Funkcja, która synchronizuje przebieg quizu.
- * Oblicza bieżący indeks pytania jako minimum liczby odpowiedzi udzielonych przez obu graczy.
- * Jeśli obecny partner jeszcze nie odpowiedział na bieżące pytanie – wyświetla je z opcjami odpowiedzi.
- * W przeciwnym razie – wyświetla komunikat oczekiwania.
+ * Funkcja inicjująca quiz w trybie synchronicznym.
+ * Buduje listę pytań i rozpoczyna cykliczne odpytywanie bazy.
  */
-function syncAndShowQuestion(quizQuestions, token, sessionData, partner, appDiv, onQuizCompleted) {
+export function startSyncQuiz(token, sessionData, partner, appDiv, onQuizCompleted) {
+  let quizQuestions = [];
+  const cats = sessionData.selectedCategories && sessionData.selectedCategories.length > 0
+    ? sessionData.selectedCategories
+    : fullQuizData;
+  cats.forEach(cat => {
+    cat.questions.forEach(q => {
+      quizQuestions.push({ ...q, category: cat.category });
+    });
+  });
+  sessionData.quizQuestions = quizQuestions;
+  // Uruchamiamy cykliczne odpytywanie
+  syncQuiz(quizQuestions, token, sessionData, partner, appDiv, onQuizCompleted);
+}
+
+/**
+ * Funkcja synchronizująca quiz – odczytuje stan odpowiedzi z bazy i decyduje, co wyświetlić.
+ */
+function syncQuiz(quizQuestions, token, sessionData, partner, appDiv, onQuizCompleted) {
   loadQuizRow(token).then(row => {
     const p1Answers = row.partner1_answers || {};
     const p2Answers = row.partner2_answers || {};
-    // Bieżący indeks to minimum liczby odpowiedzi udzielonych przez obu graczy
     const count1 = Object.keys(p1Answers).length;
     const count2 = Object.keys(p2Answers).length;
     const currentIndex = Math.min(count1, count2);
     
+    // Jeżeli quiz ukończony, wyświetlamy wyniki
     if (currentIndex >= quizQuestions.length) {
-      // Quiz ukończony – przejdź do wyników
       computeAndShowResults(token, appDiv);
       return;
     }
     
     const currentQuestion = quizQuestions[currentIndex];
-    // Sprawdzamy, czy obecny partner już odpowiedział na bieżące pytanie
-    const currentAnswer = (partner === "1" ? p1Answers : p2Answers)[currentQuestion.id];
-    if (currentAnswer === undefined) {
-      // Partner jeszcze nie odpowiedział – wyświetlamy pytanie z opcjami
+    const currentPlayerAnswers = partner === "1" ? p1Answers : p2Answers;
+    const otherPlayerAnswers = partner === "1" ? p2Answers : p1Answers;
+    
+    // Jeśli bieżący gracz jeszcze nie odpowiedział na aktualne pytanie – wyświetlamy je
+    if (currentPlayerAnswers[currentQuestion.id] === undefined) {
       const p1 = sessionData.partner1Name;
       const p2 = sessionData.partner2Name;
       const questionText = formatText(currentQuestion.text, p1, p2);
@@ -62,66 +78,34 @@ function syncAndShowQuestion(quizQuestions, token, sessionData, partner, appDiv,
             updatedP2[currentQuestion.id] = { category: currentQuestion.category, type: currentQuestion.type, answer: answer };
           }
           upsertQuizRow(token, sessionData, updatedP1, updatedP2).then(() => {
-            // Po zapisaniu, uruchamiamy polling, aby sprawdzić, czy drugi partner odpowiedział.
-            pollForSync(quizQuestions, token, sessionData, partner, appDiv, currentIndex, onQuizCompleted);
+            // Po zapisaniu, odpalamy kolejną synchronizację
+            setTimeout(() => {
+              syncQuiz(quizQuestions, token, sessionData, partner, appDiv, onQuizCompleted);
+            }, 500);
           });
         });
       });
     } else {
-      // Obecny partner już odpowiedział – czekamy na odpowiedź drugiego
-      pollForSync(quizQuestions, token, sessionData, partner, appDiv, currentIndex, onQuizCompleted);
+      // Bieżący gracz odpowiedział – sprawdzamy, czy drugi gracz już odpowiedział
+      if (otherPlayerAnswers[currentQuestion.id] === undefined) {
+        // Wyświetlamy komunikat o oczekiwaniu na odpowiedź od drugiego partnera
+        const waitingFor = partner === "1" ? sessionData.partner2Name : sessionData.partner1Name;
+        appDiv.innerHTML = `<p>Czekaj na odpowiedź od <strong>${waitingFor}</strong>...</p>`;
+        setTimeout(() => {
+          syncQuiz(quizQuestions, token, sessionData, partner, appDiv, onQuizCompleted);
+        }, 1000);
+      } else {
+        // Obaj odpowiedzieli – przechodzimy do kolejnego pytania
+        setTimeout(() => {
+          syncQuiz(quizQuestions, token, sessionData, partner, appDiv, onQuizCompleted);
+        }, 500);
+      }
     }
   });
 }
 
 /**
- * Funkcja pollingowa – odpytuje bazę co sekundę, aż oboje partnerzy udzielą odpowiedzi na bieżące pytanie.
- * Gdy to nastąpi, przechodzi do wyświetlenia kolejnego pytania.
- */
-function pollForSync(quizQuestions, token, sessionData, partner, appDiv, currentIndex, onQuizCompleted) {
-  loadQuizRow(token).then(row => {
-    const p1Answers = row.partner1_answers || {};
-    const p2Answers = row.partner2_answers || {};
-    const count1 = Object.keys(p1Answers).length;
-    const count2 = Object.keys(p2Answers).length;
-    const minCount = Math.min(count1, count2);
-    if (minCount > currentIndex) {
-      // Obydwoje odpowiedzieli – przechodzimy do kolejnego pytania
-      syncAndShowQuestion(quizQuestions, token, sessionData, partner, appDiv, onQuizCompleted);
-    } else {
-      // Określ, który partner jeszcze nie odpowiedział
-      let waitingFor = "";
-      if (count1 <= currentIndex) waitingFor += sessionData.partner1Name;
-      if (count2 <= currentIndex) waitingFor += (waitingFor ? " oraz " : "") + sessionData.partner2Name;
-      appDiv.innerHTML = `<p>Czekaj na odpowiedź od <strong>${waitingFor}</strong>...</p>`;
-      setTimeout(() => {
-        pollForSync(quizQuestions, token, sessionData, partner, appDiv, currentIndex, onQuizCompleted);
-      }, 1000);
-    }
-  });
-}
-
-/**
- * Funkcja inicjująca quiz w trybie synchronicznym.
- * Tworzy listę pytań na podstawie wybranych kategorii i uruchamia pierwszy etap synchronizacji.
- */
-export function startSyncQuiz(token, sessionData, partner, appDiv, onQuizCompleted) {
-  let quizQuestions = [];
-  const cats = sessionData.selectedCategories && sessionData.selectedCategories.length > 0
-    ? sessionData.selectedCategories
-    : fullQuizData;
-  cats.forEach(cat => {
-    cat.questions.forEach(q => {
-      quizQuestions.push({ ...q, category: cat.category });
-    });
-  });
-  sessionData.quizQuestions = quizQuestions;
-  // Rozpoczynamy synchronizację od pierwszego pytania (indeks 0)
-  syncAndShowQuestion(quizQuestions, token, sessionData, partner, appDiv, onQuizCompleted);
-}
-
-/**
- * Funkcja obliczająca i wyświetlająca wyniki – pozostaje bez zmian.
+ * Funkcja wyświetlająca wyniki quizu (pozostaje bez zmian).
  */
 export async function computeAndShowResults(token, appDiv) {
   const row = await loadQuizRow(token);
