@@ -156,6 +156,21 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
               });
             });
+          }).catch(err => {
+            console.error("Błąd podczas sprawdzania konfiguracji quizu:", err);
+            appDiv.innerHTML = `
+              <div class="error-container">
+                <h3>Błąd połączenia</h3>
+                <p>Nie można sprawdzić konfiguracji quizu. Sprawdź połączenie z internetem.</p>
+                <button id="retryBtn" class="secondary-button">Spróbuj ponownie</button>
+                <button id="homeBtn" class="primary-button">Wróć do strony głównej</button>
+              </div>
+            `;
+            
+            document.getElementById("retryBtn").addEventListener("click", waitForQuizConfig);
+            document.getElementById("homeBtn").addEventListener("click", () => {
+              window.location.href = window.location.origin + window.location.pathname;
+            });
           });
         } else {
           // Kategorie już wybrane => pokazujemy link dla Partnera 2
@@ -178,4 +193,18 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!updatedSessionData.selectedCategories || updatedSessionData.selectedCategories.length === 0) {
               appDiv.innerHTML = `
                 <div class="waiting-start-container">
-                  <h2>Ocz
+                  <h2>Oczekiwanie na rozpoczęcie</h2>
+                  <p>${sessionData.partner1Name} jeszcze nie skonfigurował quizu. Proszę czekać...</p>
+                  <div class="loader">
+                    <div class="loader-spinner"></div>
+                  </div>
+                  <p class="tip">Wskazówka: Możesz przypomnieć partnerowi o konfiguracji quizu.</p>
+                </div>
+              `;
+              setTimeout(waitForQuizConfig, 1500);
+            } else {
+              // Gdy Partner 1 wybrał kategorie, uruchamiamy quiz w trybie synchronicznym
+              startSyncQuiz(token, updatedSessionData, "2", appDiv, () => {
+                computeAndShowResults(token, appDiv);
+              });
+            }
