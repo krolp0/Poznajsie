@@ -1,4 +1,5 @@
 import { fullQuizData } from "./quizData.js";
+import { upsertQuizRow } from "./database.js";
 
 /**
  * Wyświetlanie wyboru kategorii (dla Partnera 1)
@@ -188,8 +189,12 @@ export function showQuizLink(appDiv, token, sessionData) {
 
   // Obsługa rozpoczęcia quizu
   document.getElementById("startQuizBtn").addEventListener("click", () => {
+    console.log("Kliknięto przycisk Rozpocznij Quiz");
     if (typeof window.startQuizCallback === "function") {
+      console.log("Wywołuję startQuizCallback");
       window.startQuizCallback();
+    } else {
+      console.error("startQuizCallback nie jest funkcją!");
     }
   });
 }
@@ -245,6 +250,7 @@ export function showQuestion(appDiv, questionIndex, totalQuestions, questionText
     });
   });
 }
+
 /**
  * Wyświetlanie ekranu oczekiwania
  */
