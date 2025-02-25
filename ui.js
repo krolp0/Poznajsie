@@ -238,3 +238,50 @@ export function showQuestion(appDiv, questionIndex, totalQuestions, questionText
 
 /**
  * Wyświetlanie ekranu oczekiwania
+ */
+export function showWaitingScreen(appDiv, waitingFor, waitTime = 0) {
+  // Obliczamy przybliżony czas oczekiwania w sekundach
+  const waitSeconds = Math.floor(waitTime);
+  
+  // Animowany loader
+  const dots = waitSeconds % 4; // 0-3 kropki
+  const dotsDisplay = '.'.repeat(dots + 1);
+  
+  appDiv.innerHTML = `
+    <div class="waiting-container">
+      <h2>Oczekiwanie na partnera</h2>
+      <p>Czekaj na odpowiedź od <strong>${waitingFor}</strong>${dotsDisplay}</p>
+      
+      <div class="loader">
+        <div class="loader-spinner"></div>
+      </div>
+      
+      <p class="waiting-time">${waitSeconds > 10 ? `Czas oczekiwania: ${waitSeconds} sekund` : ''}</p>
+      
+      <div class="waiting-message">
+        <p>Możesz wysłać wiadomość do partnera, aby przypomnieć o quizie:</p>
+        <button id="reminderBtn" class="secondary-button">
+          <span class="icon">💬</span> Wyślij przypomnienie
+        </button>
+      </div>
+    </div>
+  `;
+  
+  // Obsługa przycisku przypomnienia
+  const reminderBtn = document.getElementById('reminderBtn');
+  if (reminderBtn) {
+    reminderBtn.addEventListener('click', () => {
+      if (navigator.share) {
+        navigator.share({
+          title: 'Przypomnienie o Quizie dla Zakochanych',
+          text: `Hej, czekam na Twoją odpowiedź w naszym quizie! 💕`,
+        })
+        .then(() => showAlert(appDiv, "Przypomnienie wysłane!"))
+        .catch(error => console.log('Błąd udostępniania', error));
+      } else {
+        showAlert(appDiv, "Skopiowano tekst przypomnienia do schowka!");
+        navigator.clipboard.writeText(`Hej, czekam na Twoją odpowiedź w naszym quizie! 💕`);
+      }
+    });
+  }
+}
