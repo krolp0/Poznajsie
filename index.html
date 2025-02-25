@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Quiz dla Zakochanych</title>
   <link rel="stylesheet" href="style.css" />
   <link
@@ -59,6 +60,65 @@
     }
     .start-form button:hover {
       background: #b02a47;
+    }
+
+    /* Style dla loader-container */
+    .loader-container {
+      text-align: center;
+      padding: 40px 20px;
+    }
+    
+    /* Style dla error-container */
+    .error-container {
+      text-align: center;
+      padding: 40px 20px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      max-width: 500px;
+      margin: 0 auto;
+    }
+    
+    .error-container h3 {
+      color: #dc3545;
+      margin-bottom: 15px;
+    }
+    
+    .error-container p {
+      margin-bottom: 25px;
+    }
+    
+    /* Style dla offline-message */
+    .offline-message {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background-color: #dc3545;
+      color: white;
+      text-align: center;
+      padding: 10px;
+      z-index: 9999;
+    }
+    
+    /* Style dla waiting-start-container */
+    .waiting-start-container {
+      text-align: center;
+      padding: 40px 20px;
+    }
+    
+    .tip {
+      font-style: italic;
+      color: #666;
+      font-size: 0.9em;
+      margin-top: 20px;
+    }
+    
+    /* Style dla error-message */
+    .error-message {
+      color: #dc3545;
+      margin-bottom: 15px;
+      font-weight: bold;
     }
   </style>
 </head>
