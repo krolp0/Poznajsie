@@ -285,3 +285,117 @@ export function showWaitingScreen(appDiv, waitingFor, waitTime = 0) {
     });
   }
 }
+
+/**
+ * Wyświetlanie wyników quizu
+ */
+export function showQuizResults(appDiv, p1, p2, overallAgreement, categoryStatsHTML, detailsHTML, onReset) {
+  // Określenie "poziomu zgodności" na podstawie wyniku
+  let compatibilityLevel = "";
+  let compatibilityEmoji = "";
+  
+  if (parseFloat(overallAgreement) >= 90) {
+    compatibilityLevel = "Doskonała zgodność!";
+    compatibilityEmoji = "❤️❤️❤️";
+  } else if (parseFloat(overallAgreement) >= 75) {
+    compatibilityLevel = "Wysoka zgodność";
+    compatibilityEmoji = "❤️❤️";
+  } else if (parseFloat(overallAgreement) >= 50) {
+    compatibilityLevel = "Umiarkowana zgodność";
+    compatibilityEmoji = "❤️";
+  } else if (parseFloat(overallAgreement) >= 30) {
+    compatibilityLevel = "Niska zgodność";
+    compatibilityEmoji = "💔";
+  } else {
+    compatibilityLevel = "Bardzo niska zgodność";
+    compatibilityEmoji = "💔💔";
+  }
+  
+  appDiv.innerHTML = `
+    <div class="results-container">
+      <h2>Wyniki Quizu</h2>
+      
+      <div class="results-header">
+        <div class="results-names">
+          <span class="partner-name">${p1}</span>
+          <span class="vs-text">vs</span>
+          <span class="partner-name">${p2}</span>
+        </div>
+        
+        <div class="compatibility-score">
+          <div class="score-circle" style="background: conic-gradient(#d6336c ${overallAgreement}%, #f8d7da 0);">
+            <span class="score-value">${overallAgreement}%</span>
+          </div>
+          <div class="compatibility-level">
+            <span>${compatibilityLevel}</span>
+            <span class="emoji">${compatibilityEmoji}</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="results-categories">
+        <h3>Zgodność w kategoriach:</h3>
+        <div class="category-stats">
+          ${categoryStatsHTML}
+        </div>
+      </div>
+      
+      <div class="results-details">
+        <h3>Szczegółowe odpowiedzi:</h3>
+        <div class="toggle-details">
+          <button id="toggleDetailsBtn" class="secondary-button">Pokaż szczegóły</button>
+        </div>
+        <div id="detailsContainer" class="hidden">
+          <ul class="details-list">
+            ${detailsHTML}
+          </ul>
+        </div>
+      </div>
+      
+      <div class="actions">
+        <button id="shareResultsBtn" class="action-button">
+          <span class="icon">📤</span> Udostępnij wyniki
+        </button>
+        <button id="resetBtn" class="primary-button">Nowy quiz</button>
+      </div>
+    </div>
+  `;
+  
+  // Obsługa przycisku przełączania szczegółów
+  document.getElementById("toggleDetailsBtn").addEventListener("click", () => {
+    const detailsContainer = document.getElementById("detailsContainer");
+    const toggleBtn = document.getElementById("toggleDetailsBtn");
+    
+    if (detailsContainer.classList.contains("hidden")) {
+      detailsContainer.classList.remove("hidden");
+      toggleBtn.textContent = "Ukryj szczegóły";
+    } else {
+      detailsContainer.classList.add("hidden");
+      toggleBtn.textContent = "Pokaż szczegóły";
+    }
+  });
+  
+  // Obsługa przycisku udostępniania wyników
+  document.getElementById("shareResultsBtn").addEventListener("click", () => {
+    const shareText = `${p1} i ${p2} osiągnęli ${overallAgreement}% zgodności w "Quizie dla Zakochanych"! ${compatibilityEmoji}`;
+    
+    if (navigator.share) {
+      navigator.share({
+        title: 'Wyniki Quizu dla Zakochanych',
+        text: shareText
+      })
+      .catch(error => console.log('Błąd udostępniania', error));
+    } else {
+      navigator.clipboard.writeText(shareText)
+        .then(() => {
+          showAlert(appDiv, "Wyniki skopiowane do schowka!");
+        })
+        .catch(err => {
+          console.error('Błąd przy kopiowaniu: ', err);
+        });
+    }
+  });
+  
+  // Obsługa przycisku resetowania
+  document.getElementById("resetBtn").addEventListener("click", onReset);
+}
