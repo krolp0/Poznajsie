@@ -97,8 +97,11 @@ function showAlert(appDiv, message) {
  * Wyświetlanie linku dla Partnera 2 oraz przycisków do kopiowania, generowania QR Code
  */
 export function showQuizLink(appDiv, token, sessionData) {
+  // Upewnijmy się, że generujemy pełny URL z wszystkimi parametrami
+  // Użyjmy absolute URL, aby działało niezależnie od kontekstu
   const baseUrl = window.location.origin + window.location.pathname;
-  const partner2Link = `${baseUrl}?token=${token}&partner=2`;
+  // Ważne: upewnijmy się, że parametry są poprawnie zakodowane
+  const partner2Link = `${baseUrl}?token=${encodeURIComponent(token)}&partner=2`;
   
   appDiv.innerHTML = `
     <h2>Quiz stworzony!</h2>
@@ -131,15 +134,22 @@ export function showQuizLink(appDiv, token, sessionData) {
     </div>
   `;
 
-  // Generowanie QR Code z linkiem
-  new QRCode(document.getElementById("qrcode"), {
-    text: partner2Link,
-    width: 180,
-    height: 180,
-    colorDark: "#d6336c",
-    colorLight: "#ffffff",
-    correctLevel: QRCode.CorrectLevel.H
-  });
+  // Generowanie QR Code z pełnym linkiem - upewnijmy się, że QR code zawiera pełny URL
+  try {
+    new QRCode(document.getElementById("qrcode"), {
+      text: partner2Link,
+      width: 180,
+      height: 180,
+      colorDark: "#d6336c",
+      colorLight: "#ffffff",
+      correctLevel: QRCode.CorrectLevel.H
+    });
+    console.log("Wygenerowano QR kod z linkiem:", partner2Link);
+  } catch (error) {
+    console.error("Błąd przy generowaniu QR kodu:", error);
+    document.getElementById("qrcode").innerHTML = 
+      `<p class="error">Nie udało się wygenerować kodu QR. Link: <a href="${partner2Link}" target="_blank">${partner2Link}</a></p>`;
+  }
 
   // Obsługa kopiowania linku
   document.getElementById("copyBtn").addEventListener("click", () => {
@@ -238,164 +248,3 @@ export function showQuestion(appDiv, questionIndex, totalQuestions, questionText
 
 /**
  * Wyświetlanie ekranu oczekiwania
- */
-export function showWaitingScreen(appDiv, waitingFor, waitTime = 0) {
-  // Obliczamy przybliżony czas oczekiwania w sekundach
-  const waitSeconds = Math.floor(waitTime);
-  
-  // Animowany loader
-  const dots = waitSeconds % 4; // 0-3 kropki
-  const dotsDisplay = '.'.repeat(dots + 1);
-  
-  appDiv.innerHTML = `
-    <div class="waiting-container">
-      <h2>Oczekiwanie na partnera</h2>
-      <p>Czekaj na odpowiedź od <strong>${waitingFor}</strong>${dotsDisplay}</p>
-      
-      <div class="loader">
-        <div class="loader-spinner"></div>
-      </div>
-      
-      <p class="waiting-time">${waitSeconds > 10 ? `Czas oczekiwania: ${waitSeconds} sekund` : ''}</p>
-      
-      <div class="waiting-message">
-        <p>Możesz wysłać wiadomość do partnera, aby przypomnieć o quizie:</p>
-        <button id="reminderBtn" class="secondary-button">
-          <span class="icon">💬</span> Wyślij przypomnienie
-        </button>
-      </div>
-    </div>
-  `;
-  
-  // Obsługa przycisku przypomnienia
-  const reminderBtn = document.getElementById('reminderBtn');
-  if (reminderBtn) {
-    reminderBtn.addEventListener('click', () => {
-      if (navigator.share) {
-        navigator.share({
-          title: 'Przypomnienie o Quizie dla Zakochanych',
-          text: `Hej, czekam na Twoją odpowiedź w naszym quizie! 💕`,
-        })
-        .then(() => showAlert(appDiv, "Przypomnienie wysłane!"))
-        .catch(error => console.log('Błąd udostępniania', error));
-      } else {
-        showAlert(appDiv, "Skopiowano tekst przypomnienia do schowka!");
-        navigator.clipboard.writeText(`Hej, czekam na Twoją odpowiedź w naszym quizie! 💕`);
-      }
-    });
-  }
-}
-
-/**
- * Wyświetlanie wyników quizu
- */
-export function showQuizResults(appDiv, p1, p2, overallAgreement, categoryStatsHTML, detailsHTML, onReset) {
-  // Określenie "poziomu zgodności" na podstawie wyniku
-  let compatibilityLevel = "";
-  let compatibilityEmoji = "";
-  
-  if (parseFloat(overallAgreement) >= 90) {
-    compatibilityLevel = "Doskonała zgodność!";
-    compatibilityEmoji = "❤️❤️❤️";
-  } else if (parseFloat(overallAgreement) >= 75) {
-    compatibilityLevel = "Wysoka zgodność";
-    compatibilityEmoji = "❤️❤️";
-  } else if (parseFloat(overallAgreement) >= 50) {
-    compatibilityLevel = "Umiarkowana zgodność";
-    compatibilityEmoji = "❤️";
-  } else if (parseFloat(overallAgreement) >= 30) {
-    compatibilityLevel = "Niska zgodność";
-    compatibilityEmoji = "💔";
-  } else {
-    compatibilityLevel = "Bardzo niska zgodność";
-    compatibilityEmoji = "💔💔";
-  }
-  
-  appDiv.innerHTML = `
-    <div class="results-container">
-      <h2>Wyniki Quizu</h2>
-      
-      <div class="results-header">
-        <div class="results-names">
-          <span class="partner-name">${p1}</span>
-          <span class="vs-text">vs</span>
-          <span class="partner-name">${p2}</span>
-        </div>
-        
-        <div class="compatibility-score">
-          <div class="score-circle" style="background: conic-gradient(#d6336c ${overallAgreement}%, #f8d7da 0);">
-            <span class="score-value">${overallAgreement}%</span>
-          </div>
-          <div class="compatibility-level">
-            <span>${compatibilityLevel}</span>
-            <span class="emoji">${compatibilityEmoji}</span>
-          </div>
-        </div>
-      </div>
-      
-      <div class="results-categories">
-        <h3>Zgodność w kategoriach:</h3>
-        <div class="category-stats">
-          ${categoryStatsHTML}
-        </div>
-      </div>
-      
-      <div class="results-details">
-        <h3>Szczegółowe odpowiedzi:</h3>
-        <div class="toggle-details">
-          <button id="toggleDetailsBtn" class="secondary-button">Pokaż szczegóły</button>
-        </div>
-        <div id="detailsContainer" class="hidden">
-          <ul class="details-list">
-            ${detailsHTML}
-          </ul>
-        </div>
-      </div>
-      
-      <div class="actions">
-        <button id="shareResultsBtn" class="action-button">
-          <span class="icon">📤</span> Udostępnij wyniki
-        </button>
-        <button id="resetBtn" class="primary-button">Nowy quiz</button>
-      </div>
-    </div>
-  `;
-  
-  // Obsługa przycisku przełączania szczegółów
-  document.getElementById("toggleDetailsBtn").addEventListener("click", () => {
-    const detailsContainer = document.getElementById("detailsContainer");
-    const toggleBtn = document.getElementById("toggleDetailsBtn");
-    
-    if (detailsContainer.classList.contains("hidden")) {
-      detailsContainer.classList.remove("hidden");
-      toggleBtn.textContent = "Ukryj szczegóły";
-    } else {
-      detailsContainer.classList.add("hidden");
-      toggleBtn.textContent = "Pokaż szczegóły";
-    }
-  });
-  
-  // Obsługa przycisku udostępniania wyników
-  document.getElementById("shareResultsBtn").addEventListener("click", () => {
-    const shareText = `${p1} i ${p2} osiągnęli ${overallAgreement}% zgodności w "Quizie dla Zakochanych"! ${compatibilityEmoji}`;
-    
-    if (navigator.share) {
-      navigator.share({
-        title: 'Wyniki Quizu dla Zakochanych',
-        text: shareText
-      })
-      .catch(error => console.log('Błąd udostępniania', error));
-    } else {
-      navigator.clipboard.writeText(shareText)
-        .then(() => {
-          showAlert(appDiv, "Wyniki skopiowane do schowka!");
-        })
-        .catch(err => {
-          console.error('Błąd przy kopiowaniu: ', err);
-        });
-    }
-  });
-  
-  // Obsługa przycisku resetowania
-  document.getElementById("resetBtn").addEventListener("click", onReset);
-}
