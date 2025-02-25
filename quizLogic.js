@@ -14,11 +14,13 @@ function formatText(text, p1, p2) {
  * Buduje listę pytań oraz uruchamia funkcję synchronizującą.
  */
 export function startSyncQuiz(token, sessionData, partner, appDiv, onQuizCompleted) {
+  console.log("startSyncQuiz rozpoczęty dla partnera:", partner);
   // Sprawdzamy, czy mamy już zapisane pytania
   let quizQuestions = sessionData.quizQuestions || [];
   
   // Jeśli nie mamy pytań, budujemy je
   if (quizQuestions.length === 0) {
+    console.log("Budowanie listy pytań...");
     const cats = (sessionData.selectedCategories && sessionData.selectedCategories.length > 0)
       ? sessionData.selectedCategories
       : fullQuizData;
@@ -31,13 +33,17 @@ export function startSyncQuiz(token, sessionData, partner, appDiv, onQuizComplet
     
     // Zapisujemy pytania w sesji, żeby nie tworzyć ich ponownie
     sessionData.quizQuestions = quizQuestions;
-    upsertQuizRow(token, sessionData, {}, {}).catch(err => {
+    upsertQuizRow(token, sessionData, {}, {}).then(() => {
+      console.log("Pytania zapisane w bazie, rozpoczynam quiz");
+      syncQuiz(quizQuestions, token, sessionData, partner, appDiv, onQuizCompleted);
+    }).catch(err => {
       console.error("Błąd przy zapisywaniu pytań:", err);
       appDiv.innerHTML = "<p>Błąd przy inicjalizacji quizu. Odśwież stronę i spróbuj ponownie.</p>";
     });
+  } else {
+    console.log("Pytania już istnieją, rozpoczynam quiz");
+    syncQuiz(quizQuestions, token, sessionData, partner, appDiv, onQuizCompleted);
   }
-  
-  syncQuiz(quizQuestions, token, sessionData, partner, appDiv, onQuizCompleted);
 }
 
 /**
@@ -47,6 +53,7 @@ export function startSyncQuiz(token, sessionData, partner, appDiv, onQuizComplet
  * Gdy oboje udzielą odpowiedzi, przechodzi do kolejnego pytania.
  */
 function syncQuiz(quizQuestions, token, sessionData, partner, appDiv, onQuizCompleted) {
+  console.log("syncQuiz wywołany");
   loadQuizRow(token).then(row => {
     if (!row) {
       appDiv.innerHTML = "<p>Błąd: Nie można załadować quizu z bazy. <button id='retryBtn'>Spróbuj ponownie</button></p>";
@@ -62,8 +69,11 @@ function syncQuiz(quizQuestions, token, sessionData, partner, appDiv, onQuizComp
     const count2 = Object.keys(p2Answers).length;
     const currentIndex = Math.min(count1, count2);
 
+    console.log(`Partner ${partner}: P1 odpowiedzi: ${count1}, P2 odpowiedzi: ${count2}, Bieżący indeks: ${currentIndex}`);
+
     // Jeśli quiz ukończony, przechodzimy do wyników
     if (currentIndex >= quizQuestions.length) {
+      console.log("Quiz ukończony, pokazuję wyniki");
       if (typeof onQuizCompleted === "function") {
         onQuizCompleted();
       } else {
@@ -78,6 +88,7 @@ function syncQuiz(quizQuestions, token, sessionData, partner, appDiv, onQuizComp
 
     // Jeśli dany gracz jeszcze nie odpowiedział na bieżące pytanie – wyświetlamy pytanie.
     if (currentPlayerAnswers[currentQuestion.id] === undefined) {
+      console.log(`Partner ${partner} potrzebuje odpowiedzieć na pytanie: ${currentQuestion.id}`);
       const p1 = sessionData.partner1Name;
       const p2 = sessionData.partner2Name;
       const questionText = formatText(currentQuestion.text, p1, p2);
@@ -120,6 +131,7 @@ function syncQuiz(quizQuestions, token, sessionData, partner, appDiv, onQuizComp
           }
           
           upsertQuizRow(token, sessionData, updatedP1, updatedP2).then(() => {
+            console.log(`Partner ${partner} zapisał odpowiedź na pytanie: ${currentQuestion.id}`);
             // Po zapisaniu odpowiedzi, uruchamiamy polling synchronizacyjny
             pollForSync(quizQuestions, token, sessionData, partner, appDiv, currentIndex, onQuizCompleted);
           }).catch(err => {
@@ -144,11 +156,13 @@ function syncQuiz(quizQuestions, token, sessionData, partner, appDiv, onQuizComp
     } else {
       // Dany gracz już odpowiedział – jeśli drugi nie, pokaż komunikat oczekiwania.
       if (otherPlayerAnswers[currentQuestion.id] === undefined) {
+        console.log(`Partner ${partner} czeka na odpowiedź drugiego partnera`);
         const waitingFor = (partner === "1") ? sessionData.partner2Name : sessionData.partner1Name;
         showWaitingScreen(appDiv, waitingFor);
         pollForSync(quizQuestions, token, sessionData, partner, appDiv, currentIndex, onQuizCompleted);
       } else {
         // Obaj udzielili odpowiedzi – przechodzimy do kolejnego pytania.
+        console.log("Obaj partnerzy odpowiedzieli, przechodzimy do kolejnego pytania");
         setTimeout(() => {
           syncQuiz(quizQuestions, token, sessionData, partner, appDiv, onQuizCompleted);
         }, 500);
@@ -176,6 +190,7 @@ const POLL_INTERVAL = 1000; // 1 sekunda między zapytaniami
  * Dodana obsługa timeout w przypadku zbyt długiego oczekiwania.
  */
 function pollForSync(quizQuestions, token, sessionData, partner, appDiv, currentIndex, onQuizCompleted) {
+  console.log("pollForSync rozpoczęty");
   // Jeśli mamy aktywny polling, anulujemy go
   if (pollTimeoutId) {
     clearTimeout(pollTimeoutId);
@@ -219,8 +234,11 @@ function pollForSync(quizQuestions, token, sessionData, partner, appDiv, current
     // Obliczamy bieżący indeks na nowo – powinniśmy mieć ten sam, jeśli druga strona nie odpowiedziała.
     const newIndex = Math.min(Object.keys(p1Answers).length, Object.keys(p2Answers).length);
     
+    console.log(`Polling - P1: ${Object.keys(p1Answers).length} odpowiedzi, P2: ${Object.keys(p2Answers).length} odpowiedzi, nowy indeks: ${newIndex}`);
+    
     if (newIndex > currentIndex) {
       // Obie strony udzieliły odpowiedzi – resetujemy licznik i przechodzimy do synchronizacji kolejnego pytania.
+      console.log("Obaj partnerzy odpowiedzieli podczas pollingu, przechodzimy dalej");
       pollCount = 0;
       setTimeout(() => {
         syncQuiz(quizQuestions, token, sessionData, partner, appDiv, onQuizCompleted);
@@ -232,6 +250,7 @@ function pollForSync(quizQuestions, token, sessionData, partner, appDiv, current
       
       if (currentPlayerAnswers[currentQuestion.id] === undefined) {
         // Ten przypadek nie powinien się zdarzyć, ale dla bezpieczeństwa wyświetlamy pytanie ponownie
+        console.log("Dziwny stan - partner nie ma odpowiedzi w pollingu, pokazuję pytanie ponownie");
         const p1 = sessionData.partner1Name;
         const p2 = sessionData.partner2Name;
         const questionText = formatText(currentQuestion.text, p1, p2);
